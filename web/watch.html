@@ -284,6 +284,7 @@
 
 <div id="hud-bottom">
   <div style="display:flex;gap:14px;align-items:center;margin-bottom:10px;">
+    <span style="font-size:12px;color:var(--muted)">tempo: <b id="h-time" style="color:var(--ink)">-</b></span>
     <span style="font-size:12px;color:var(--muted)">passos: <b id="h-steps" style="color:var(--ink)">-</b></span>
     <span style="font-size:12px;color:var(--muted)">score: <b id="h-score" style="color:var(--accent)">-</b></span>
   </div>
@@ -585,6 +586,7 @@ async function poll(){
       document.getElementById('h-inv').textContent   = s.inventory&&s.inventory.length ? s.inventory.join(', ') : '-';
       document.getElementById('h-god').textContent   = (s.god_message_count||0)+' ⚡';
       document.getElementById('god-count').textContent = (s.god_message_count||0)+' enviada'+(s.god_message_count!==1?'s':'');
+      document.getElementById('h-time').textContent  = (s.time !== undefined ? s.time.toFixed(1) + 's' : '-');
       document.getElementById('h-steps').textContent = s.steps;
       document.getElementById('h-score').textContent = (s.score>=0?'+':'')+s.score;
       document.getElementById('obs-box').textContent = s.obs||'';

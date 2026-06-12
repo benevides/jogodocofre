@@ -284,6 +284,7 @@ def current_game():
         "obs":              env._descricao_sala(),
         "inventory":        env.estado["inventario"],
         "steps":            env.estado["passos"],
+        "time":             round(time.time() - env.estado["t0"], 1) if "t0" in env.estado else 0.0,
         "score":            env.estado.get("score", 0),
         "terminated":       env.estado["cofre_aberto"],
         "valid_actions":    env._acoes_validas(),   # só para o watch

@@ -29,3 +29,4 @@ desktop.ini
 # Logs e temporários
 *.log
 *.tmp
+logs/

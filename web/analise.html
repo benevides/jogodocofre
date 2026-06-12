@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -252,6 +252,7 @@ function renderLista(lista) {
       <td><span class="dot" style="background:${cor || "transparent"}"></span></td>
       <td><strong>${r.model}</strong></td>
       <td>${fmtData(r.started_at)}</td>
+      <td>${esc(r.modo || "livre")}</td>
       <td>${fmtT(r.tempo_total)}</td>
       <td>${r.passos}</td>
       <td>${(r.milestones || []).length}/8</td>
@@ -259,7 +260,7 @@ function renderLista(lista) {
     </tr>`;
   }).join("");
   $("lista").innerHTML = `<table>
-    <thead><tr><th></th><th>Modelo</th><th>Data</th><th>Tempo</th><th>Passos</th><th>Milest.</th><th></th></tr></thead>
+    <thead><tr><th></th><th>Modelo</th><th>Data</th><th>Modo</th><th>Tempo</th><th>Passos</th><th>Milest.</th><th></th></tr></thead>
     <tbody>${linhas}</tbody></table>`;
   $("lista").querySelectorAll("tbody tr").forEach(tr =>
     tr.addEventListener("click", () => { toggle(tr.dataset.id); render(); }));

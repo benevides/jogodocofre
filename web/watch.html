@@ -70,7 +70,10 @@
   #win.show{display:flex;}
   #win .big{font-size:28px;font-weight:700;letter-spacing:3px;color:var(--accent);margin-bottom:12px;}
   #win .sub{font-size:13px;color:var(--muted);}
-  #win button{margin-top:22px;padding:10px 22px;font-family:inherit;font-size:12px;background:var(--accent);color:#111;border:none;border-radius:7px;cursor:pointer;}
+  #win .acoes{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center;}
+  #win button{padding:10px 22px;font-family:inherit;font-size:12px;background:var(--accent);color:#111;border:none;border-radius:7px;cursor:pointer;}
+  #win button.alt{background:transparent;color:var(--ink);border:1px solid var(--muted);}
+  #win button.alt:hover{border-color:var(--accent);color:var(--accent);}
 </style>
 </head>
 <body>
@@ -122,7 +125,11 @@
 <div id="win">
   <div class="big">IA VENCEU 🎉</div>
   <div class="sub" id="win-txt">...</div>
-  <button id="win-reset">jogar novamente</button>
+  <div class="acoes">
+    <button id="win-reset">🔄 jogar novamente</button>
+    <button id="win-analise" class="alt">📊 ver análise</button>
+    <button id="win-home" class="alt">🏠 página principal</button>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -445,6 +452,9 @@ async function doReset(){
 }
 document.getElementById('btn-reset').onclick  = doReset;
 document.getElementById('win-reset').onclick  = doReset;
+// SERVER cobre tanto a página servida pelo server.py quanto aberta via file://
+document.getElementById('win-analise').onclick = ()=>{ location.href = SERVER + '/analise'; };
+document.getElementById('win-home').onclick    = ()=>{ location.href = SERVER + '/'; };
 
 // ── RESIZE ────────────────────────────────────────────────────────────────────
 window.addEventListener('resize',()=>{

@@ -4,35 +4,167 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>O Cofre V2 — Watch</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-  :root{--bg:#161719;--panel:#1d1e21;--ink:#e7e7e9;--muted:#8b8d93;--line:#2c2e33;--accent:#2bb38a;--v2:#e0873a;}
+  :root{
+    --bg:#0a0f0b; --bg-2:#0f150e; --panel:#131b12; --panel-2:#1a2418;
+    --border:#233122; --border-2:#354230;
+    --ink:#f0f2e9; --muted:#8a9a84;
+    --accent:#7da67d; --accent-2:#c4a93d; --v2:#b8942e;
+    --line:#233122; --glass:rgba(16, 23, 14, 0.88);
+    --sb-width:260px;
+  }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:var(--bg);color:var(--ink);font-family:"JetBrains Mono",monospace;height:100%;overflow:hidden;}
+
+  /* ─── MENU LATERAL ─── */
+  .sidebar {
+    width: var(--sb-width);
+    min-height: 100vh;
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    padding: 28px 20px;
+    font-family: "Inter", system-ui, sans-serif;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+  }
+  .sidebar.collapsed { transform: translateX(-100%); }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 40px;
+    padding: 0 8px;
+  }
+  .brand-left { display: flex; align-items: center; gap: 12px; }
+  .collapse-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 1rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.2s;
+  }
+  .collapse-btn:hover { background: var(--panel-2); border-color: var(--border-2); color: var(--accent-2); }
+  .brand-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    box-shadow: 0 8px 24px rgba(125, 166, 125, 0.22);
+  }
+  .brand-text h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.3px; line-height: 1.1; }
+  .brand-text span { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+
+  .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .nav-menu a {
+    display: flex; align-items: center; gap: 13px;
+    padding: 14px 16px; border-radius: 12px;
+    text-decoration: none; color: var(--muted);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 0.92rem; font-weight: 500;
+    transition: all 0.2s ease; border: 1px solid transparent;
+    position: relative;
+  }
+  .nav-menu a .icon { font-size: 1.15rem; width: 28px; text-align: center; }
+  .nav-menu a:hover { background: rgba(196, 169, 61, 0.08); color: var(--ink); border-color: rgba(196, 169, 61, 0.22); transform: translateX(4px); }
+  .nav-menu a.active { background: linear-gradient(90deg, rgba(125, 166, 125, 0.15) 0%, rgba(196, 169, 61, 0.08) 100%); color: var(--ink); border-color: rgba(125, 166, 125, 0.4); box-shadow: 0 0 24px rgba(125, 166, 125, 0.12); }
+  .nav-menu a.active::before { content: ""; position: absolute; left: 0; width: 4px; height: 28px; background: linear-gradient(180deg, var(--accent) 0%, var(--accent-2) 100%); border-radius: 0 4px 4px 0; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 14px;
+    background: rgba(10, 12, 16, 0.5);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .menu-toggle {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 110;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.2s, opacity 0.25s, transform 0.25s;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-10px);
+  }
+  body:not(.sidebar-open) .menu-toggle {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+  }
+  .menu-toggle:hover { border-color: var(--accent-2); color: var(--accent-2); }
+
+  /* ─── STAGE ─── */
   #stage{position:fixed;inset:0;}
   #stage canvas{width:100%!important;height:100%!important;}
 
+  /* Ajustes quando sidebar aberta */
+  body.sidebar-open #hud-top,
+  body.sidebar-open #controls,
+  body.sidebar-open #status-banner { left: var(--sb-width); }
+  body.sidebar-open #god-panel { right: 18px; }
+
+  /* Evita sobreposição do menu-toggle quando sidebar está recolhida */
+  body:not(.sidebar-open) #hud-top { padding-left: 72px; }
+
   /* HUD topo */
-  #hud-top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:14px 18px;pointer-events:none;z-index:10;}
-  .hud-block{background:rgba(22,23,25,.75);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:12px;line-height:1.8;}
-  .hud-block .lbl{color:var(--muted);font-size:10px;letter-spacing:.5px;}
-  .hud-block .val{color:var(--accent);font-weight:500;}
+  #hud-top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:14px 18px;pointer-events:none;z-index:10;transition:left 0.3s ease;}
+  .hud-block{background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:12px;line-height:1.9;box-shadow:0 8px 24px rgba(0,0,0,.25);}
+  .hud-block .lbl{color:var(--muted);font-size:10px;letter-spacing:.5px;text-transform:uppercase;font-weight:600;}
+  .hud-block .val{color:var(--accent);font-weight:600;}
 
   /* Badge V2 */
   #v2-badge{background:var(--v2);color:#111;font-size:10px;font-weight:700;letter-spacing:1.5px;padding:3px 8px;border-radius:4px;pointer-events:none;}
 
   /* Observação em baixo */
-  #hud-bottom{position:fixed;bottom:0;left:0;right:0;padding:14px 18px;z-index:10;}
-  #obs-box{background:rgba(22,23,25,.85);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:8px;padding:10px 16px;font-size:12px;line-height:1.6;max-height:80px;overflow:hidden;}
+  #hud-bottom{position:fixed;bottom:0;left:0;right:0;padding:14px 18px;z-index:10;transition:left 0.3s ease;}
+  body.sidebar-open #hud-bottom { left: var(--sb-width); }
+  #obs-box{background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:10px;padding:12px 18px;font-size:12.5px;line-height:1.7;max-height:90px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.25);}
 
   /* Botões */
-  #controls{position:fixed;top:14px;right:18px;display:flex;gap:8px;z-index:11;pointer-events:all;align-items:center;}
-  button.hbtn{font-family:inherit;font-size:11px;font-weight:500;padding:7px 13px;background:rgba(22,23,25,.85);border:1px solid var(--line);color:var(--muted);border-radius:7px;cursor:pointer;transition:.15s;backdrop-filter:blur(6px);}
+  #controls{position:fixed;top:14px;right:18px;display:flex;gap:8px;z-index:11;pointer-events:all;align-items:center;justify-content:flex-end;transition:left 0.3s ease;}
+  button.hbtn{font-family:inherit;font-size:11px;font-weight:600;padding:8px 14px;background:var(--glass);border:1px solid var(--line);color:var(--muted);border-radius:8px;cursor:pointer;transition:.15s;backdrop-filter:blur(10px);}
   button.hbtn:hover{border-color:var(--accent);color:var(--accent);}
 
   /* Status banner */
-  #status-banner{position:fixed;top:54px;left:50%;transform:translateX(-50%);background:rgba(22,23,25,.85);border:1px solid var(--line);border-radius:20px;padding:5px 16px;font-size:11px;color:var(--muted);z-index:10;backdrop-filter:blur(6px);white-space:nowrap;}
+  #status-banner{position:fixed;top:54px;left:50%;transform:translateX(-50%);background:var(--glass);border:1px solid var(--line);border-radius:20px;padding:6px 18px;font-size:11px;color:var(--muted);z-index:10;backdrop-filter:blur(10px);white-space:nowrap;transition:left 0.3s ease, transform 0.3s ease;}
   #status-banner.playing{color:var(--accent);}
+  body.sidebar-open #status-banner { transform: translateX(calc(-50% + var(--sb-width)/2)); }
 
   /* Balão de pensamento */
   #bubble{
@@ -48,43 +180,89 @@
   #bubble.below::after{bottom:auto;top:-10px;border-top-color:transparent;border-bottom:10px solid #f5f3e8;border-top:none;}
 
   /* Controle de fonte */
-  #font-ctrl{display:flex;align-items:center;gap:4px;background:rgba(22,23,25,.85);border:1px solid var(--line);border-radius:7px;padding:4px 8px;backdrop-filter:blur(6px);font-size:11px;color:var(--muted);}
+  #font-ctrl{display:flex;align-items:center;gap:4px;background:var(--glass);border:1px solid var(--line);border-radius:8px;padding:5px 10px;backdrop-filter:blur(10px);font-size:11px;color:var(--muted);}
   #font-ctrl button{font-family:inherit;font-size:13px;font-weight:700;background:none;border:none;color:var(--muted);cursor:pointer;padding:0 4px;line-height:1;transition:.1s;}
   #font-ctrl button:hover{color:var(--accent);}
   #font-size-lbl{min-width:30px;text-align:center;color:var(--ink);}
 
   /* God Messages */
-  #god-panel{position:fixed;bottom:90px;right:18px;width:280px;z-index:15;}
-  #god-panel .gp-title{font-size:10px;letter-spacing:1px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;}
-  #god-panel .gp-title span{color:#f0c040;}
-  #god-input{width:100%;font-family:inherit;font-size:12px;padding:8px 10px;background:rgba(22,23,25,.9);border:1px solid #f0c04055;color:var(--ink);border-radius:7px 7px 0 0;resize:none;height:56px;backdrop-filter:blur(6px);}
-  #god-input:focus{outline:none;border-color:#f0c040;box-shadow:0 0 0 2px rgba(240,192,64,.15);}
-  #god-send{width:100%;font-family:inherit;font-size:11px;font-weight:700;padding:7px;background:#f0c040;color:#111;border:none;border-radius:0 0 7px 7px;cursor:pointer;letter-spacing:.5px;transition:.15s;}
-  #god-send:hover{background:#ffd700;}
+  #god-panel{position:fixed;bottom:100px;right:18px;width:290px;z-index:15;}
+  #god-panel .gp-title{font-size:10px;letter-spacing:1px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;font-weight:600;}
+  #god-panel .gp-title span{color:#d4b43a;}
+  #god-input{width:100%;font-family:inherit;font-size:12px;padding:10px 12px;background:var(--glass);border:1px solid #d4b43a55;color:var(--ink);border-radius:8px 8px 0 0;resize:none;height:60px;backdrop-filter:blur(10px);}
+  #god-input:focus{outline:none;border-color:#d4b43a;box-shadow:0 0 0 2px rgba(212,180,58,.15);}
+  #god-send{width:100%;font-family:inherit;font-size:11px;font-weight:700;padding:9px;background:#d4b43a;color:#111;border:none;border-radius:0 0 8px 8px;cursor:pointer;letter-spacing:.5px;transition:.15s;}
+  #god-send:hover{background:#e0c24a;}
   #god-send:active{transform:scale(.98);}
 
   @keyframes godFlash{0%{opacity:0}20%{opacity:.35}100%{opacity:0}}
-  #god-flash{position:fixed;inset:0;background:radial-gradient(circle,#f0c04044 0%,transparent 70%);pointer-events:none;z-index:50;opacity:0;}
+  #god-flash{position:fixed;inset:0;background:radial-gradient(circle,#d4b43a44 0%,transparent 70%);pointer-events:none;z-index:50;opacity:0;}
 
-  #win{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(10,10,10,.8);z-index:100;}
+  #win{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(10,10,10,.85);backdrop-filter:blur(6px);z-index:100;}
   #win.show{display:flex;}
-  #win .big{font-size:28px;font-weight:700;letter-spacing:3px;color:var(--accent);margin-bottom:12px;}
-  #win .sub{font-size:13px;color:var(--muted);}
-  #win .acoes{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;justify-content:center;}
-  #win button{padding:10px 22px;font-family:inherit;font-size:12px;background:var(--accent);color:#111;border:none;border-radius:7px;cursor:pointer;}
+  #win .big{font-size:32px;font-weight:800;letter-spacing:3px;color:var(--accent);margin-bottom:14px;text-shadow:0 0 40px rgba(125,166,125,.35);}
+  #win .sub{font-size:14px;color:var(--muted);}
+  #win .acoes{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap;justify-content:center;}
+  #win button{padding:12px 26px;font-family:inherit;font-size:13px;font-weight:600;background:var(--accent);color:#111;border:none;border-radius:9px;cursor:pointer;transition:.15s;}
+  #win button:hover{filter:brightness(1.1);transform:translateY(-2px);}
   #win button.alt{background:transparent;color:var(--ink);border:1px solid var(--muted);}
   #win button.alt:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* ─── MOBILE ─── */
+  @media (max-width: 900px) {
+    .sidebar { width: 280px; }
+    body.sidebar-open #hud-top,
+    body.sidebar-open #controls,
+    body.sidebar-open #hud-bottom,
+    body.sidebar-open #status-banner { left: 0; }
+    body.sidebar-open #status-banner { transform: translateX(-50%); }
+    #hud-top { padding-top: 76px; }
+    #controls { top: 76px; }
+    #status-banner { top: 116px; }
+  }
+  @media (max-width: 520px) {
+    #god-panel { width: calc(100% - 36px); }
+    #controls { left: 14px !important; right: 14px; top: 72px; flex-wrap: wrap; }
+    #hud-top { padding-top: 116px; }
+    #status-banner { top: 156px; }
+  }
 </style>
 </head>
-<body>
+<body class="sidebar-open">
+
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-left">
+      <div class="brand-icon">🔐</div>
+      <div class="brand-text">
+        <h1>O Cofre</h1>
+        <span>Escape Room IA</span>
+      </div>
+    </div>
+    <button class="collapse-btn" id="collapse-btn" aria-label="Recolher menu">◀</button>
+  </div>
+  <nav>
+    <ul class="nav-menu">
+      <li><a href="/"><span class="icon">🏠</span> Início</a></li>
+      <li><a href="/watch" class="active"><span class="icon">🎮</span> Assistir</a></li>
+      <li><a href="/analise"><span class="icon">📊</span> Análises</a></li>
+      <li><a href="/configurar"><span class="icon">🔌</span> Configurar</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    Use <code>python src/agente.py</code> para iniciar uma partida.
+  </div>
+</aside>
 
 <div id="stage"></div>
 
 <div id="hud-top">
   <div class="hud-block">
-    <div class="lbl">LOCAL</div><div class="val" id="h-room">-</div>
-    <div class="lbl">INVENTÁRIO</div><div class="val" id="h-inv">-</div>
-    <div class="lbl">GOD MESSAGES</div><div class="val" id="h-god">0 ⚡</div>
+    <div class="lbl">Local</div><div class="val" id="h-room">-</div>
+    <div class="lbl">Inventário</div><div class="val" id="h-inv">-</div>
+    <div class="lbl">God Messages</div><div class="val" id="h-god">0 ⚡</div>
   </div>
 </div>
 
@@ -104,9 +282,9 @@
 <div id="bubble"></div>
 
 <div id="hud-bottom">
-  <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
-    <span style="font-size:11px;color:var(--muted)">passos: <b id="h-steps" style="color:var(--ink)">-</b></span>
-    <span style="font-size:11px;color:var(--muted)">score: <b id="h-score" style="color:var(--accent)">-</b></span>
+  <div style="display:flex;gap:14px;align-items:center;margin-bottom:10px;">
+    <span style="font-size:12px;color:var(--muted)">passos: <b id="h-steps" style="color:var(--ink)">-</b></span>
+    <span style="font-size:12px;color:var(--muted)">score: <b id="h-score" style="color:var(--accent)">-</b></span>
   </div>
   <div id="obs-box">pronto.</div>
 </div>
@@ -137,6 +315,30 @@
 <script>
 (function(){
 
+// ─── MENU LATERAL ────────────────────────────────────────────────────────────
+const sidebar = document.getElementById('sidebar');
+const menuToggle = document.getElementById('menu-toggle');
+const collapseBtn = document.getElementById('collapse-btn');
+
+function updateSidebar(){
+  const open = document.body.classList.contains('sidebar-open');
+  sidebar.classList.toggle('collapsed', !open);
+  menuToggle.setAttribute('aria-expanded', open);
+  collapseBtn.setAttribute('aria-expanded', open);
+  collapseBtn.textContent = open ? '◀' : '▶';
+  localStorage.setItem('cofre-sidebar', open ? 'open' : 'closed');
+}
+function openSidebar(){ document.body.classList.add('sidebar-open'); updateSidebar(); }
+function closeSidebar(){ document.body.classList.remove('sidebar-open'); updateSidebar(); }
+
+menuToggle.addEventListener('click', openSidebar);
+collapseBtn.addEventListener('click', closeSidebar);
+
+if(localStorage.getItem('cofre-sidebar') === 'closed'){
+  document.body.classList.remove('sidebar-open');
+}
+updateSidebar();
+
 // Usa a origem da página quando servido pelo server.py; fallback p/ file://
 const SERVER   = location.protocol.startsWith('http') ? location.origin
                                                        : 'http://localhost:5002';
@@ -145,8 +347,8 @@ const ROOM_POS = {sala:[0,0], cozinha:[-9.5,0], quarto:[0,-9.5], escritorio:[9.5
 // ── RENDERER ────────────────────────────────────────────────────────────────
 const stage  = document.getElementById('stage');
 const scene  = new THREE.Scene();
-scene.background = new THREE.Color(0x23252b);
-scene.fog        = new THREE.Fog(0x23252b, 25, 62);
+scene.background = new THREE.Color(0x141a13);
+scene.fog        = new THREE.Fog(0x141a13, 25, 62);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 200);
 camera.position.set(0, 18, 22);
@@ -193,7 +395,7 @@ function room(cx,cz,s,col,skip){
   if(skip!=='E') wall(cx+h,cz,.2,s);
   if(skip!=='W') wall(cx-h,cz,.2,s);
 }
-function hl(m){ m.material.emissive=new THREE.Color(0x1d9e75); m.material.emissiveIntensity=.45; }
+function hl(m){ m.material.emissive=new THREE.Color(0x5a8a5a); m.material.emissiveIntensity=.45; }
 function unhl(m){ m.material.emissive=new THREE.Color(0); m.material.emissiveIntensity=0; }
 
 // ── ROOMS ────────────────────────────────────────────────────────────────────
@@ -254,12 +456,12 @@ scene.add(key);
 const agent  = new THREE.Group();
 const agBody = new THREE.Mesh(
   new THREE.CylinderGeometry(.34,.34,1.0,18),
-  new THREE.MeshStandardMaterial({color:0x378add, roughness:.5})
+  new THREE.MeshStandardMaterial({color:0x5a7a5a, roughness:.5})
 );
 agBody.position.y = .5;
 const agHead = new THREE.Mesh(
   new THREE.SphereGeometry(.3,18,18),
-  new THREE.MeshStandardMaterial({color:0x85b7eb, roughness:.5})
+  new THREE.MeshStandardMaterial({color:0x8faf8f, roughness:.5})
 );
 agHead.position.y = 1.15;
 agent.add(agBody); agent.add(agHead);
@@ -370,7 +572,7 @@ async function poll(){
       // Vitória
       if(s.terminated){
         safeDoor.rotation.y=-1.1; safeDoor.position.x=8.95; safeDoor.position.z=-1.45;
-        safe.material.color=new THREE.Color(0x1d9e75);
+        safe.material.color=new THREE.Color(0x5a8a5a);
         currentThought='';
         document.getElementById('win').classList.add('show');
         document.getElementById('win-txt').textContent =

@@ -115,6 +115,11 @@ def pagina_watch():
     return send_from_directory(WEB_DIR, 'watch.html')
 
 
+@app.route('/configurar')
+def pagina_configurar():
+    return send_from_directory(WEB_DIR, 'configurar.html')
+
+
 # ── Endpoints do agente (sem valid_actions) ──────────────────────────────────
 
 def _iniciar_jogada(model, system_prompt="", modo=None):

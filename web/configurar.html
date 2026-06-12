@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O Cofre — Configurar MCP</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f0b; --bg-2: #0f150e; --panel: #131b12; --panel-2: #1a2418;
+    --border: #233122; --border-2: #354230;
+    --texto: #f0f2e9; --suave: #8a9a84; --destaque: #7da67d; --destaque-2: #c4a93d;
+    --amarelo: #d4c76a; --ouro: #b8942e;
+    --sb-width: 260px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--texto);
+    font-family: "Inter", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
+  }
+
+  /* ─── MENU LATERAL ─── */
+  .sidebar {
+    width: var(--sb-width);
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    padding: 28px 20px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  body.sidebar-open .sidebar { transform: translateX(0); }
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 40px;
+    padding: 0 8px;
+  }
+  .brand-left { display: flex; align-items: center; gap: 12px; }
+  .collapse-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--suave);
+    font-size: 1rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.2s;
+  }
+  .collapse-btn:hover { background: var(--panel-2); border-color: var(--border-2); color: var(--destaque-2); }
+  .brand-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--destaque) 0%, var(--destaque-2) 100%);
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    box-shadow: 0 8px 24px rgba(125, 166, 125, 0.22);
+  }
+  .brand-text h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.3px; line-height: 1.1; }
+  .brand-text span { font-size: 0.7rem; color: var(--suave); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+
+  .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .nav-menu a {
+    display: flex; align-items: center; gap: 13px;
+    padding: 14px 16px; border-radius: 12px;
+    text-decoration: none; color: var(--suave);
+    font-size: 0.92rem; font-weight: 500;
+    transition: all 0.2s ease; border: 1px solid transparent;
+    position: relative;
+  }
+  .nav-menu a .icon { font-size: 1.15rem; width: 28px; text-align: center; }
+  .nav-menu a:hover { background: rgba(196, 169, 61, 0.08); color: var(--texto); border-color: rgba(196, 169, 61, 0.22); transform: translateX(4px); }
+  .nav-menu a.active { background: linear-gradient(90deg, rgba(125, 166, 125, 0.15) 0%, rgba(196, 169, 61, 0.08) 100%); color: var(--texto); border-color: rgba(125, 166, 125, 0.4); box-shadow: 0 0 24px rgba(125, 166, 125, 0.12); }
+  .nav-menu a.active::before { content: ""; position: absolute; left: 0; width: 4px; height: 28px; background: linear-gradient(180deg, var(--destaque) 0%, var(--destaque-2) 100%); border-radius: 0 4px 4px 0; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px;
+    background: rgba(10, 12, 16, 0.5);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--suave);
+    line-height: 1.6;
+  }
+
+  /* ─── MENU TOGGLE ─── */
+  .menu-toggle {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 110;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--texto);
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.2s, opacity 0.25s, transform 0.25s;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-10px);
+  }
+  body:not(.sidebar-open) .menu-toggle {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+  }
+  .menu-toggle:hover { background: var(--panel-2); border-color: var(--border-2); color: var(--destaque-2); }
+
+  /* ─── CONTEÚDO PRINCIPAL ─── */
+  .main {
+    margin-left: 0;
+    padding: 36px 40px 48px;
+    padding-left: 92px;
+    flex: 1;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 85% 10%, rgba(196, 169, 61, 0.06) 0%, transparent 35%),
+      radial-gradient(circle at 15% 90%, rgba(125, 166, 125, 0.05) 0%, transparent 35%),
+      var(--bg);
+    transition: margin-left 0.3s ease, padding-left 0.3s ease;
+  }
+  body.sidebar-open .main { margin-left: var(--sb-width); padding-left: 40px; }
+  @media (max-width: 900px) {
+    .main { padding: 90px 24px 40px 24px; }
+    body.sidebar-open .main { padding: 90px 24px 40px 24px; }
+    .sidebar { width: 280px; }
+  }
+
+  header { margin-bottom: 28px; }
+  header h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+  header p { color: var(--suave); font-size: 0.96rem; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 16px; padding: 22px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .card h2 {
+    font-size: 1rem; font-weight: 700; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2::before { content: ""; width: 4px; height: 18px; background: linear-gradient(180deg, var(--destaque) 0%, var(--destaque-2) 100%); border-radius: 2px; }
+  .card p { color: var(--suave); font-size: 0.9rem; line-height: 1.6; margin-bottom: 14px; }
+  .card p strong { color: var(--texto); }
+
+  .url-box {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-2); border: 1px solid var(--border-2);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;
+  }
+  .url-box code {
+    flex: 1; font-family: "JetBrains Mono", monospace; font-size: 0.85rem; color: var(--destaque-2);
+    overflow-x: auto;
+  }
+  .url-box button {
+    background: var(--destaque); color: var(--bg); border: none;
+    border-radius: 7px; padding: 7px 12px; font-weight: 600; font-size: 0.78rem;
+    cursor: pointer; transition: filter 0.15s;
+  }
+  .url-box button:hover { filter: brightness(1.1); }
+
+  pre {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+    font-family: "JetBrains Mono", monospace; font-size: 0.82rem;
+    color: #c9d1d9; overflow-x: auto; line-height: 1.5;
+  }
+  pre code { font-family: inherit; color: inherit; }
+
+  .dica {
+    background: rgba(196, 169, 61, 0.08); border: 1px solid rgba(196, 169, 61, 0.22);
+    border-radius: 10px; padding: 14px 16px; font-size: 0.86rem;
+    color: var(--suave); line-height: 1.6; margin-top: 12px;
+  }
+  .dica strong { color: var(--amarelo); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 8px; }
+  th { text-align: left; color: var(--suave); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 8px; border-bottom: 1px solid #1e222d; color: var(--suave); line-height: 1.5; }
+  td code { background: var(--bg-2); padding: 2px 6px; border-radius: 5px; border: 1px solid var(--border); color: var(--texto); font-family: "JetBrains Mono", monospace; font-size: 0.75rem; }
+</style>
+</head>
+<body class="sidebar-open">
+
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-left">
+      <div class="brand-icon">🔐</div>
+      <div class="brand-text">
+        <h1>O Cofre</h1>
+        <span>Escape Room IA</span>
+      </div>
+    </div>
+    <button class="collapse-btn" id="collapse-btn" aria-label="Recolher menu">◀</button>
+  </div>
+  <nav>
+    <ul class="nav-menu">
+      <li><a href="/"><span class="icon">🏠</span> Início</a></li>
+      <li><a href="/watch"><span class="icon">🎮</span> Assistir</a></li>
+      <li><a href="/analise"><span class="icon">📊</span> Análises</a></li>
+      <li><a href="/configurar" class="active"><span class="icon">🔌</span> Configurar</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    Conecte qualquer cliente MCP e deixe a IA jogar sozinha.
+  </div>
+</aside>
+
+<main class="main">
+  <header>
+    <h1>🔌 Configurar MCP</h1>
+    <p>Conecte Claude Code, Cursor, Claude Desktop ou qualquer cliente MCP ao jogo. A IA enxerga o ambiente e manda ações diretamente pelas tools.</p>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>URL do servidor MCP</h2>
+      <p>O servidor está rodando localmente. Use essa URL no seu cliente:</p>
+      <div class="url-box">
+        <code id="mcp-url">http://localhost:5002/mcp</code>
+        <button id="btn-copy" onclick="copiarUrl()">Copiar</button>
+      </div>
+      <div class="dica">
+        <strong>Importante:</strong> a IA deve informar o próprio nome de modelo ao chamar <code>iniciar_jogo</code>, senão a partida não inicia.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Claude Code (CLI)</h2>
+      <p>No terminal, rode:</p>
+      <pre><code>claude mcp add --transport http cofre http://localhost:5002/mcp</code></pre>
+      <p style="margin-top:12px">Depois peça para a IA iniciar o jogo.</p>
+    </div>
+
+    <div class="card">
+      <h2>Cursor / JSON</h2>
+      <p>Adicione no arquivo de configuração do Cursor:</p>
+      <pre><code>{
+  "mcpServers": {
+    "jogo do cofre": { "url": "http://localhost:5002/mcp" }
+  }
+}</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>Claude Desktop / claude.ai</h2>
+      <p>Esses clientes precisam de uma URL pública HTTPS. Exponha o servidor com um túnel:</p>
+      <pre><code>ngrok http 5002
+# use a URL gerada: https://xxxx.ngrok.app/mcp</code></pre>
+      <div class="dica">
+        <strong>Atenção:</strong> o servidor não tem autenticação. Use o túnel só durante a partida.
+      </div>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>Tools disponíveis</h2>
+      <table>
+        <thead>
+          <tr><th>Tool</th><th>Parâmetros</th><th>O que faz</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>iniciar_jogo</code></td>
+            <td><code>modelo</code> (obrigatório), <code>modo</code> (opcional)</td>
+            <td>Inicia a partida e retorna a observação inicial. O nome do modelo identifica a jogada no log/análise.</td>
+          </tr>
+          <tr>
+            <td><code>executar_acao</code></td>
+            <td><code>acao</code> (obrigatório), <code>pensamento</code> (obrigatório)</td>
+            <td>Executa uma ação em linguagem natural. O <code>pensamento</code> aparece no balão 3D e no log.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>Exemplo de prompt para a IA</h2>
+      <p>Copie e cole no chat com a IA depois de conectar o MCP:</p>
+      <pre><code>Você tem acesso às tools do servidor "cofre". Chame iniciar_jogo informando seu nome de modelo, leia a observação e use executar_acao quantas vezes precisar até abrir o cofre. Ninguém vai te dizer os comandos — explore.</code></pre>
+    </div>
+  </div>
+</main>
+
+<script>
+const menuToggle = document.getElementById("menu-toggle");
+const collapseBtn = document.getElementById("collapse-btn");
+const sidebar = document.getElementById("sidebar");
+
+function updateSidebar() {
+  const open = document.body.classList.contains("sidebar-open");
+  menuToggle.setAttribute("aria-expanded", open);
+  collapseBtn.setAttribute("aria-expanded", open);
+  collapseBtn.textContent = open ? "◀" : "▶";
+  localStorage.setItem("cofre-sidebar", open ? "open" : "closed");
+}
+function openSidebar() { document.body.classList.add("sidebar-open"); updateSidebar(); }
+function closeSidebar() { document.body.classList.remove("sidebar-open"); updateSidebar(); }
+
+menuToggle.addEventListener("click", openSidebar);
+collapseBtn.addEventListener("click", closeSidebar);
+
+document.addEventListener("click", e => {
+  if (window.innerWidth > 900) return;
+  if (!sidebar.contains(e.target) && e.target !== menuToggle) closeSidebar();
+});
+
+if (localStorage.getItem("cofre-sidebar") === "closed") closeSidebar();
+updateSidebar();
+
+if (location.protocol.startsWith("http")) {
+  document.getElementById("mcp-url").textContent = location.origin + "/mcp";
+}
+
+function copiarUrl() {
+  const url = document.getElementById("mcp-url").textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById("btn-copy");
+    const original = btn.textContent;
+    btn.textContent = "Copiado!";
+    setTimeout(() => btn.textContent = original, 1500);
+  });
+}
+</script>
+</body>
+</html>

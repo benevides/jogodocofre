@@ -4,83 +4,520 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>O Cofre — Escape Room para IAs</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d1117; --panel: #161b22; --border: #30363d;
-    --texto: #e6edf3; --suave: #8b949e; --destaque: #4fc3f7;
+    --bg: #0a0f0b;
+    --bg-2: #0f150e;
+    --panel: #131b12;
+    --panel-2: #1a2418;
+    --border: #233122;
+    --border-2: #354230;
+    --texto: #f0f2e9;
+    --suave: #8a9a84;
+    --destaque: #7da67d;
+    --destaque-2: #c4a93d;
+    --amarelo: #d4c76a;
+    --ouro: #b8942e;
+    --sb-width: 260px;
+    --gradient-1: linear-gradient(135deg, #7da67d 0%, #c4a93d 100%);
+    --gradient-2: linear-gradient(135deg, #8a9a84 0%, #d4c76a 100%);
+    --glass: rgba(16, 23, 14, 0.85);
+    --shadow: 0 24px 64px rgba(0,0,0,0.5);
+    --shadow-sm: 0 8px 24px rgba(0,0,0,0.3);
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    background: radial-gradient(circle at 50% 0%, #16202e 0%, var(--bg) 60%);
-    color: var(--texto); font-family: "Segoe UI", system-ui, sans-serif;
-    min-height: 100vh; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; padding: 24px;
+    background: var(--bg);
+    color: var(--texto);
+    font-family: "Inter", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
   }
-  .logo { font-size: 4rem; margin-bottom: 8px; }
-  h1 { font-size: 2.2rem; margin-bottom: 6px; text-align: center; }
-  .subtitulo {
-    color: var(--suave); text-align: center; max-width: 560px;
-    line-height: 1.5; margin-bottom: 40px;
+
+  /* ─── MENU LATERAL ─── */
+  .sidebar {
+    width: var(--sb-width);
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    padding: 28px 20px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
   }
-  .opcoes { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; }
-  .opcao {
-    display: block; width: 300px; background: var(--panel);
-    border: 1px solid var(--border); border-radius: 14px;
-    padding: 28px 24px; text-decoration: none; color: var(--texto);
-    transition: transform .15s, border-color .15s, box-shadow .15s;
+  body.sidebar-open .sidebar { transform: translateX(0); }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 40px;
+    padding: 0 8px;
   }
-  .opcao:hover {
-    transform: translateY(-4px); border-color: var(--destaque);
-    box-shadow: 0 8px 28px rgba(79, 195, 247, .15);
+  .brand-left { display: flex; align-items: center; gap: 12px; }
+  .collapse-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--suave);
+    font-size: 1rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.2s;
   }
-  .opcao .icone { font-size: 2.6rem; margin-bottom: 12px; }
-  .opcao h2 { font-size: 1.15rem; margin-bottom: 8px; color: var(--destaque); }
-  .opcao p { color: var(--suave); font-size: .86rem; line-height: 1.5; }
-  footer {
-    margin-top: 48px; color: var(--suave); font-size: .78rem;
-    text-align: center; line-height: 1.7;
+  .collapse-btn:hover { background: var(--panel-2); border-color: var(--border-2); color: var(--destaque-2); }
+
+  .brand-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: var(--gradient-1);
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    box-shadow: 0 8px 24px rgba(125, 166, 125, 0.22);
   }
-  footer code {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 5px; padding: 2px 7px; font-size: .75rem;
+
+  .brand-text h1 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    line-height: 1.1;
+  }
+
+  .brand-text span {
+    font-size: 0.7rem;
+    color: var(--suave);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 600;
+  }
+
+  .nav-menu {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .nav-menu a {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--suave);
+    font-size: 0.92rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+  }
+
+  .nav-menu a .icon {
+    font-size: 1.15rem;
+    width: 28px;
+    text-align: center;
+  }
+
+  .nav-menu a:hover {
+    background: rgba(196, 169, 61, 0.08);
+    color: var(--texto);
+    border-color: rgba(196, 169, 61, 0.22);
+    transform: translateX(4px);
+  }
+
+  .nav-menu a.active {
+    background: linear-gradient(90deg, rgba(125, 166, 125, 0.15) 0%, rgba(196, 169, 61, 0.08) 100%);
+    color: var(--texto);
+    border-color: rgba(125, 166, 125, 0.4);
+    box-shadow: 0 0 24px rgba(125, 166, 125, 0.12);
+  }
+
+  .nav-menu a.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 4px;
+    height: 28px;
+    background: var(--gradient-1);
+    border-radius: 0 4px 4px 0;
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px;
+    background: rgba(10, 12, 16, 0.5);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--suave);
+    line-height: 1.6;
+  }
+
+  .sidebar-footer code {
+    background: var(--panel-2);
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    color: var(--destaque-2);
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  /* ─── CONTEÚDO PRINCIPAL ─── */
+  .main {
+    margin-left: 0;
+    flex: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    padding-left: 92px;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(125, 166, 125, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(196, 169, 61, 0.07) 0%, transparent 40%),
+      var(--bg);
+    position: relative;
+    transition: margin-left 0.3s ease, padding-left 0.3s ease;
+  }
+  body.sidebar-open .main { margin-left: var(--sb-width); padding-left: 48px; }
+  @media (max-width: 900px) {
+    .main { padding: 90px 24px 48px 24px; }
+    body.sidebar-open .main { padding: 90px 24px 48px 24px; }
+  }
+
+  .main::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%237da67d' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .hero {
+    text-align: center;
+    max-width: 760px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(125, 166, 125, 0.1);
+    border: 1px solid rgba(125, 166, 125, 0.28);
+    border-radius: 30px;
+    color: var(--destaque);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .badge::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    background: var(--destaque);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--destaque);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .hero h2 {
+    font-size: 3.6rem;
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.05;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #f6f7ee 0%, #d4c76a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero p {
+    font-size: 1.15rem;
+    color: var(--suave);
+    line-height: 1.7;
+    max-width: 600px;
+    margin: 0 auto 48px;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    width: 100%;
+    max-width: 760px;
+  }
+
+  .card-link {
+    position: relative;
+    display: block;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 34px 28px;
+    text-decoration: none;
+    color: var(--texto);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+
+  .card-link::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(196, 169, 61, 0.12), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .card-link:hover {
+    transform: translateY(-6px);
+    border-color: rgba(125, 166, 125, 0.45);
+    box-shadow: var(--shadow);
+  }
+
+  .card-link:hover::before { opacity: 1; }
+
+  .card-link.watch { border-top: 3px solid var(--destaque); }
+  .card-link.analise { border-top: 3px solid var(--destaque-2); }
+
+  .card-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    font-size: 1.8rem;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .watch .card-icon { background: rgba(125, 166, 125, 0.12); }
+  .analise .card-icon { background: rgba(196, 169, 61, 0.12); }
+
+  .card-link h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-link p {
+    color: var(--suave);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-arrow {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--panel-2);
+    display: grid;
+    place-items: center;
+    color: var(--suave);
+    transition: all 0.2s;
+    z-index: 1;
+  }
+
+  .card-link:hover .card-arrow {
+    background: var(--destaque-2);
+    color: var(--bg);
+    transform: translateX(4px);
+  }
+
+  .bottom-info {
+    margin-top: 48px;
+    text-align: center;
+    color: var(--suave);
+    font-size: 0.82rem;
+    line-height: 1.8;
+    position: relative;
+    z-index: 1;
+  }
+
+  .bottom-info code {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--destaque);
+  }
+
+  /* ─── MENU TOGGLE (só aparece quando menu recolhido) ─── */
+  .menu-toggle {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 110;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--texto);
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.2s, opacity 0.25s, transform 0.25s;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-10px);
+  }
+  body:not(.sidebar-open) .menu-toggle {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+  }
+  .menu-toggle:hover { background: var(--panel-2); border-color: var(--border-2); color: var(--destaque-2); }
+
+  @media (max-width: 900px) {
+    .sidebar { width: 280px; }
+    body.sidebar-open .main { margin-left: 0; padding: 90px 24px 48px; }
+    .hero h2 { font-size: 2.4rem; }
+  }
+
+  @media (max-width: 520px) {
+    .hero h2 { font-size: 1.9rem; }
+    .cards { grid-template-columns: 1fr; }
   }
 </style>
 </head>
-<body>
+<body class="sidebar-open">
 
-<div class="logo">🔐</div>
-<h1>O Cofre</h1>
-<p class="subtitulo">
-  Um escape room jogado por IAs. O agente é largado numa casa desconhecida,
-  sem instruções, e precisa descobrir sozinho como abrir o cofre.
-</p>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
 
-<div class="opcoes">
-  <a class="opcao" href="/watch">
-    <div class="icone">🎮</div>
-    <h2>Assistir ao jogo</h2>
-    <p>Acompanhe a IA explorando a casa em 3D, ao vivo: pensamentos,
-       ações e descobertas a cada turno. Você pode até mandar dicas divinas.</p>
-  </a>
-  <a class="opcao" href="/analise">
-    <div class="icone">📊</div>
-    <h2>Analisar jogadas</h2>
-    <p>Compare modelos e partidas: tempo total, gráfico de evolução das
-       milestones, conversas completas com a LLM e filtros por modelo e tempo.</p>
-  </a>
-</div>
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-left">
+      <div class="brand-icon">🔐</div>
+      <div class="brand-text">
+        <h1>O Cofre</h1>
+        <span>Escape Room IA</span>
+      </div>
+    </div>
+    <button class="collapse-btn" id="collapse-btn" aria-label="Recolher menu">◀</button>
+  </div>
 
-<footer>
-  Para jogar: rode <code>python src/agente.py</code> em outro terminal,<br>
-  ou conecte qualquer IA via MCP em <code id="mcp-url">http://localhost:5002/mcp</code>
-  (veja o README).<br>
-  Os logs de cada partida ficam em <code>logs/*.json</code>.
-</footer>
+  <nav>
+    <ul class="nav-menu">
+      <li><a href="/" class="active"><span class="icon">🏠</span> Início</a></li>
+      <li><a href="/watch"><span class="icon">🎮</span> Assistir</a></li>
+      <li><a href="/analise"><span class="icon">📊</span> Análises</a></li>
+      <li><a href="/configurar"><span class="icon">🔌</span> Configurar</a></li>
+    </ul>
+  </nav>
+
+  <div class="sidebar-footer">
+    Conecte uma IA via MCP:<br>
+    <code id="mcp-url">http://localhost:5002/mcp</code><br>
+    Logs em <code>logs/*.json</code>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="hero">
+    <div class="badge">Escape Room para IAs</div>
+    <h2>Uma casa, um cofre e uma inteligência artificial sozinha.</h2>
+    <p>
+      O agente é largado num ambiente desconhecido sem instruções. Ele precisa explorar,
+      descobrir pistas e decidir sozinho como abrir o cofre. Acompanhe ao vivo ou analise
+      cada partida depois.
+    </p>
+  </div>
+
+  <div class="cards">
+    <a class="card-link watch" href="/watch">
+      <div class="card-icon">🎮</div>
+      <h3>Assistir ao jogo</h3>
+      <p>Veja a IA explorando a casa em 3D, em tempo real. Acompanhe pensamentos, ações, descobertas e envie dicas divinas.</p>
+      <div class="card-arrow">→</div>
+    </a>
+    <a class="card-link analise" href="/analise">
+      <div class="card-icon">📊</div>
+      <h3>Analisar jogadas</h3>
+      <p>Compare modelos e partidas: tempo total, evolução das milestones, conversas completas com a LLM e filtros avançados.</p>
+      <div class="card-arrow">→</div>
+    </a>
+  </div>
+
+  <div class="bottom-info">
+    Para jogar: rode <code>python src/agente.py</code> em outro terminal,<br>
+    ou conecte qualquer IA via MCP em <code id="mcp-url-2">http://localhost:5002/mcp</code>.
+  </div>
+</main>
 
 <script>
   // Mostra a URL real do MCP quando a página é servida pelo server.py
-  if (location.protocol.startsWith("http"))
-    document.getElementById("mcp-url").textContent = location.origin + "/mcp";
+  if (location.protocol.startsWith("http")) {
+    document.querySelectorAll('[id^="mcp-url"]').forEach(el =>
+      el.textContent = location.origin + "/mcp");
+  }
+
+  // Menu lateral recolhível
+  const menuToggle = document.getElementById("menu-toggle");
+  const collapseBtn = document.getElementById("collapse-btn");
+  const sidebar = document.getElementById("sidebar");
+
+  function updateSidebar() {
+    const open = document.body.classList.contains("sidebar-open");
+    menuToggle.setAttribute("aria-expanded", open);
+    collapseBtn.setAttribute("aria-expanded", open);
+    collapseBtn.textContent = open ? "◀" : "▶";
+    localStorage.setItem("cofre-sidebar", open ? "open" : "closed");
+  }
+
+  function openSidebar() { document.body.classList.add("sidebar-open"); updateSidebar(); }
+  function closeSidebar() { document.body.classList.remove("sidebar-open"); updateSidebar(); }
+
+  menuToggle.addEventListener("click", openSidebar);
+  collapseBtn.addEventListener("click", closeSidebar);
+
+  document.addEventListener("click", e => {
+    if (window.innerWidth > 900) return;
+    if (!sidebar.contains(e.target) && e.target !== menuToggle) closeSidebar();
+  });
+
+  if (localStorage.getItem("cofre-sidebar") === "closed") closeSidebar();
+  updateSidebar();
 </script>
 </body>
 </html>

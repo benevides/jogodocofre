@@ -4,129 +4,353 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>O Cofre — Análise de Jogadas</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d1117; --panel: #161b22; --border: #30363d;
-    --texto: #e6edf3; --suave: #8b949e; --destaque: #4fc3f7;
-    --ok: #56d364; --erro: #f85149;
+    --bg: #0a0f0b; --bg-2: #0f150e; --panel: #131b12; --panel-2: #1a2418;
+    --border: #233122; --border-2: #354230;
+    --texto: #f0f2e9; --suave: #8a9a84; --destaque: #7da67d; --destaque-2: #c4a93d;
+    --ok: #7da67d; --erro: #c77b7b; --amarelo: #d4c76a; --ouro: #b8942e;
+    --sb-width: 260px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg); color: var(--texto);
-    font-family: "Segoe UI", system-ui, sans-serif;
-    padding: 24px; min-height: 100vh;
+    font-family: "Inter", system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    overflow-x: hidden;
   }
-  h1 { font-size: 1.5rem; margin-bottom: 4px; }
-  .subtitulo { color: var(--suave); font-size: .9rem; margin-bottom: 20px; }
 
-  .filtros {
-    display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+  /* ─── MENU LATERAL ─── */
+  .sidebar {
+    width: var(--sb-width);
+    min-height: 100vh;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    padding: 28px 20px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
   }
-  .filtros label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--suave); }
+  body.sidebar-open .sidebar { transform: translateX(0); }
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 40px;
+    padding: 0 8px;
+  }
+  .brand-left { display: flex; align-items: center; gap: 12px; }
+  .collapse-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--suave);
+    font-size: 1rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.2s;
+  }
+  .collapse-btn:hover { background: var(--panel-2); border-color: var(--border-2); color: var(--destaque-2); }
+  .brand-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--destaque) 0%, var(--destaque-2) 100%);
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+    box-shadow: 0 8px 24px rgba(125, 166, 125, 0.22);
+  }
+  .brand-text h1 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.3px; line-height: 1.1; }
+  .brand-text span { font-size: 0.7rem; color: var(--suave); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+
+  .nav-menu { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .nav-menu a {
+    display: flex; align-items: center; gap: 13px;
+    padding: 14px 16px; border-radius: 12px;
+    text-decoration: none; color: var(--suave);
+    font-size: 0.92rem; font-weight: 500;
+    transition: all 0.2s ease; border: 1px solid transparent;
+    position: relative;
+  }
+  .nav-menu a .icon { font-size: 1.15rem; width: 28px; text-align: center; }
+  .nav-menu a:hover { background: rgba(196, 169, 61, 0.08); color: var(--texto); border-color: rgba(196, 169, 61, 0.22); transform: translateX(4px); }
+  .nav-menu a.active { background: linear-gradient(90deg, rgba(125, 166, 125, 0.15) 0%, rgba(196, 169, 61, 0.08) 100%); color: var(--texto); border-color: rgba(125, 166, 125, 0.4); box-shadow: 0 0 24px rgba(125, 166, 125, 0.12); }
+  .nav-menu a.active::before { content: ""; position: absolute; left: 0; width: 4px; height: 28px; background: linear-gradient(180deg, var(--destaque) 0%, var(--destaque-2) 100%); border-radius: 0 4px 4px 0; }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px;
+    background: rgba(10, 12, 16, 0.5);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--suave);
+    line-height: 1.6;
+  }
+
+  /* ─── CONTEÚDO PRINCIPAL ─── */
+  .main {
+    margin-left: 0;
+    padding: 36px 40px 48px;
+    padding-left: 92px;
+    flex: 1;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 85% 10%, rgba(196, 169, 61, 0.06) 0%, transparent 35%),
+      radial-gradient(circle at 15% 90%, rgba(125, 166, 125, 0.05) 0%, transparent 35%),
+      var(--bg);
+    transition: margin-left 0.3s ease, padding-left 0.3s ease;
+  }
+  body.sidebar-open .main { margin-left: var(--sb-width); padding-left: 40px; }
+  @media (max-width: 900px) {
+    .main { padding: 90px 24px 40px 24px; }
+    body.sidebar-open .main { padding: 90px 24px 40px 24px; }
+  }
+
+  header { margin-bottom: 28px; }
+  header h1 { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+  header p { color: var(--suave); font-size: 0.96rem; }
+
+  /* Filtros */
+  .filtros {
+    display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 16px; padding: 18px 20px; margin-bottom: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+  .filtros label { display: flex; flex-direction: column; gap: 5px; font-size: 0.75rem; color: var(--suave); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
   .filtros select, .filtros input[type=number] {
     background: var(--bg); color: var(--texto); border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 8px; font-size: .85rem; min-width: 110px;
+    border-radius: 8px; padding: 8px 10px; font-size: 0.88rem; min-width: 130px;
+    font-family: inherit; transition: border-color 0.15s;
   }
-  .filtros .check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 8px; }
+  .filtros select:focus, .filtros input[type=number]:focus { outline: none; border-color: var(--destaque-2); }
+  .filtros .check { flex-direction: row; align-items: center; gap: 8px; padding-bottom: 8px; text-transform: none; letter-spacing: 0; font-size: 0.85rem; }
+  .filtros .check input { width: 18px; height: 18px; accent-color: var(--destaque); cursor: pointer; }
   .filtros button {
-    background: var(--destaque); color: #08243a; border: none; border-radius: 6px;
-    padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: .85rem;
+    background: linear-gradient(135deg, var(--destaque) 0%, var(--destaque-2) 100%);
+    color: #0a0f0b; border: none; border-radius: 10px;
+    padding: 10px 18px; font-weight: 700; cursor: pointer; font-size: 0.86rem;
+    transition: all 0.15s; box-shadow: 0 6px 20px rgba(125, 166, 125, 0.2);
   }
-  .filtros button:hover { filter: brightness(1.1); }
+  .filtros button:hover { filter: brightness(1.1); transform: translateY(-2px); }
+  #status { font-size: 0.82rem; color: var(--suave); margin-left: auto; padding-bottom: 8px; font-weight: 500; }
+  .offline { color: var(--erro) !important; }
 
-  .resumo { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  /* Resumo */
+  .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 24px; }
   .card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    padding: 12px 18px; min-width: 140px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; transition: all 0.2s;
   }
-  .card .valor { font-size: 1.4rem; font-weight: 700; }
-  .card .rotulo { color: var(--suave); font-size: .75rem; margin-top: 2px; }
+  .card:hover { border-color: var(--border-2); transform: translateY(-2px); }
+  .card .valor { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.5px; }
+  .card .rotulo { color: var(--suave); font-size: 0.75rem; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card:nth-child(1) .valor { color: var(--destaque-2); }
+  .card:nth-child(2) .valor { color: var(--ok); }
+  .card:nth-child(3) .valor { color: var(--amarelo); }
+  .card:nth-child(4) .valor { color: var(--ouro); }
+  .card:nth-child(5) .valor { color: #9ab89a; }
 
-  .colunas { display: grid; grid-template-columns: 430px 1fr; gap: 16px; align-items: start; }
-  @media (max-width: 1100px) { .colunas { grid-template-columns: 1fr; } }
+  /* Colunas */
+  .colunas { display: grid; grid-template-columns: 460px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 1200px) { .colunas { grid-template-columns: 1fr; } }
 
   .painel {
     background: var(--panel); border: 1px solid var(--border);
-    border-radius: 10px; padding: 14px;
+    border-radius: 16px; padding: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
   }
-  .painel h2 { font-size: .95rem; margin-bottom: 10px; color: var(--destaque); }
+  .painel h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; color: var(--texto); display: flex; align-items: center; gap: 8px; }
+  .painel h2::before { content: ""; width: 4px; height: 18px; background: linear-gradient(180deg, var(--destaque) 0%, var(--destaque-2) 100%); border-radius: 2px; }
 
-  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-  th { text-align: left; color: var(--suave); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-  td { padding: 7px 8px; border-bottom: 1px solid #21262d; }
-  tbody tr { cursor: pointer; }
-  tbody tr:hover { background: #1c2330; }
-  tbody tr.selecionada { background: #1a2738; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; color: var(--suave); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 8px; border-bottom: 1px solid #1e222d; }
+  tbody tr { cursor: pointer; transition: background 0.12s; }
+  tbody tr:hover { background: #1a2418; }
+  tbody tr.selecionada { background: linear-gradient(90deg, #1c2a18 0%, #1a2418 100%); }
   .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--border); }
-  .venceu { color: var(--ok); } .perdeu { color: var(--erro); }
-  .vazio { color: var(--suave); padding: 20px; text-align: center; font-size: .85rem; }
+  .venceu { color: var(--ok); font-weight: 700; } .perdeu { color: var(--erro); font-weight: 700; }
+  .vazio { color: var(--suave); padding: 30px; text-align: center; font-size: 0.88rem; }
 
   #grafico { width: 100%; height: auto; display: block; }
-  .legenda { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: .8rem; }
-  .legenda span { display: flex; align-items: center; gap: 6px; }
+  .legenda { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 0.8rem; }
+  .legenda span { display: flex; align-items: center; gap: 6px; background: var(--bg); padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border); }
 
-  #detalhe { margin-top: 16px; }
+  #detalhe { margin-top: 18px; }
   details.turno {
-    border: 1px solid var(--border); border-radius: 6px;
-    margin: 6px 0; padding: 6px 10px; font-size: .82rem;
+    border: 1px solid var(--border); border-radius: 10px;
+    margin: 8px 0; padding: 10px 14px; font-size: 0.84rem;
+    background: var(--bg-2);
   }
-  details.turno summary { cursor: pointer; }
+  details.turno summary { cursor: pointer; font-weight: 500; }
   details.turno summary .t { color: var(--suave); }
-  details.turno .pensa { color: var(--suave); margin: 6px 0; }
+  details.turno .pensa { color: var(--suave); margin: 8px 0; }
   details.turno pre {
     white-space: pre-wrap; word-break: break-word; background: var(--bg);
-    border-radius: 6px; padding: 8px 10px; margin: 6px 0;
-    font-size: .76rem; color: #c9d1d9; max-height: 320px; overflow-y: auto;
+    border-radius: 8px; padding: 10px 12px; margin: 8px 0;
+    font-size: 0.77rem; color: #c9d1d9; max-height: 340px; overflow-y: auto;
+    border: 1px solid var(--border); font-family: "JetBrains Mono", monospace;
   }
-  details.turno .resultado { color: var(--ok); margin: 6px 0 2px; }
-  details.prompt summary { color: var(--suave); font-size: .74rem; cursor: pointer; }
-  #status { font-size: .8rem; color: var(--suave); margin-left: auto; padding-bottom: 8px; }
-  .offline { color: var(--erro) !important; }
+  details.turno .resultado { color: var(--ok); margin: 8px 0 2px; font-weight: 600; }
+  details.prompt summary { color: var(--suave); font-size: 0.75rem; cursor: pointer; }
+
+  .secao-titulo { font-size: 1rem; font-weight: 700; margin: 24px 0 12px; color: var(--texto); display: flex; align-items: center; gap: 8px; }
+  .secao-titulo::before { content: ""; width: 4px; height: 18px; background: linear-gradient(180deg, var(--destaque-2) 0%, var(--amarelo) 100%); border-radius: 2px; }
+
+  /* ─── MENU TOGGLE (só aparece quando menu recolhido) ─── */
+  .menu-toggle {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 110;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--texto);
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.2s, opacity 0.25s, transform 0.25s;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-10px);
+  }
+  body:not(.sidebar-open) .menu-toggle {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+  }
+  .menu-toggle:hover { background: var(--panel-2); border-color: var(--border-2); color: var(--destaque-2); }
+
+  @media (max-width: 900px) {
+    .sidebar { width: 280px; }
+    body.sidebar-open .main { margin-left: 0; padding: 90px 24px 40px; }
+  }
+  @media (max-width: 520px) {
+    .resumo { grid-template-columns: repeat(2, 1fr); }
+    .filtros { flex-direction: column; align-items: stretch; }
+    .filtros label { width: 100%; }
+    .filtros select, .filtros input[type=number] { width: 100%; }
+    #status { margin-left: 0; }
+  }
 </style>
 </head>
-<body>
+<body class="sidebar-open">
 
-<h1>🔐 O Cofre — Análise de Jogadas</h1>
-<p class="subtitulo">Tempo total e milestones de cada IA para resolver o enigma. Clique nas jogadas para compará-las no gráfico.</p>
+<button class="menu-toggle" id="menu-toggle" aria-label="Abrir menu">☰</button>
 
-<div class="filtros">
-  <label>Modelo
-    <select id="filtro-modelo"><option value="">Todos</option></select>
-  </label>
-  <label>Tempo mín (s)
-    <input type="number" id="filtro-min" min="0" placeholder="0">
-  </label>
-  <label>Tempo máx (s)
-    <input type="number" id="filtro-max" min="0" placeholder="∞">
-  </label>
-  <label class="check">
-    <input type="checkbox" id="filtro-vitorias"> Só vitórias
-  </label>
-  <button id="btn-recarregar">🔄 Recarregar</button>
-  <span id="status">carregando…</span>
-</div>
-
-<div class="resumo" id="resumo"></div>
-
-<div class="colunas">
-  <div class="painel">
-    <h2>Jogadas</h2>
-    <div id="lista"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-left">
+      <div class="brand-icon">🔐</div>
+      <div class="brand-text">
+        <h1>O Cofre</h1>
+        <span>Escape Room IA</span>
+      </div>
+    </div>
+    <button class="collapse-btn" id="collapse-btn" aria-label="Recolher menu">◀</button>
   </div>
-  <div class="painel">
-    <h2>Evolução — quando cada milestone foi atingida</h2>
-    <svg id="grafico" viewBox="0 0 960 460" preserveAspectRatio="xMidYMid meet"></svg>
-    <div class="legenda" id="legenda"></div>
-    <div id="detalhe"></div>
+  <nav>
+    <ul class="nav-menu">
+      <li><a href="/"><span class="icon">🏠</span> Início</a></li>
+      <li><a href="/watch"><span class="icon">🎮</span> Assistir</a></li>
+      <li><a href="/analise" class="active"><span class="icon">📊</span> Análises</a></li>
+      <li><a href="/configurar"><span class="icon">🔌</span> Configurar</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    Compare modelos e descubra qual IA resolve o enigma mais rápido.
   </div>
-</div>
+</aside>
+
+<main class="main">
+  <header>
+    <h1>📊 Análise de Jogadas</h1>
+    <p>Tempo total, milestones e conversas de cada IA. Clique nas jogadas para compará-las no gráfico.</p>
+  </header>
+
+  <div class="filtros">
+    <label>Modelo
+      <select id="filtro-modelo"><option value="">Todos</option></select>
+    </label>
+    <label>Tempo mín (s)
+      <input type="number" id="filtro-min" min="0" placeholder="0">
+    </label>
+    <label>Tempo máx (s)
+      <input type="number" id="filtro-max" min="0" placeholder="∞">
+    </label>
+    <label class="check">
+      <input type="checkbox" id="filtro-vitorias"> Só vitórias
+    </label>
+    <button id="btn-recarregar">🔄 Recarregar</button>
+    <span id="status">carregando…</span>
+  </div>
+
+  <div class="resumo" id="resumo"></div>
+
+  <div class="colunas">
+    <div class="painel">
+      <h2>Jogadas</h2>
+      <div id="lista"></div>
+    </div>
+    <div class="painel">
+      <h2>Evolução — quando cada milestone foi atingida</h2>
+      <svg id="grafico" viewBox="0 0 960 460" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="legenda" id="legenda"></div>
+      <div id="detalhe"></div>
+    </div>
+  </div>
+</main>
 
 <script>
 // Usa a origem da página quando servido pelo server.py; fallback p/ file://
 const SERVER = location.protocol.startsWith("http") ? location.origin
                                                      : "http://localhost:5002";
+
+// Menu mobile
+const menuToggle = document.getElementById("menu-toggle");
+const collapseBtn = document.getElementById("collapse-btn");
+const sidebar = document.getElementById("sidebar");
+
+function updateSidebar() {
+  const open = document.body.classList.contains("sidebar-open");
+  menuToggle.setAttribute("aria-expanded", open);
+  collapseBtn.setAttribute("aria-expanded", open);
+  collapseBtn.textContent = open ? "◀" : "▶";
+  localStorage.setItem("cofre-sidebar", open ? "open" : "closed");
+}
+
+function openSidebar() { document.body.classList.add("sidebar-open"); updateSidebar(); }
+function closeSidebar() { document.body.classList.remove("sidebar-open"); updateSidebar(); }
+
+menuToggle.addEventListener("click", openSidebar);
+collapseBtn.addEventListener("click", closeSidebar);
+
+document.addEventListener("click", e => {
+  if (window.innerWidth > 900) return;
+  if (!sidebar.contains(e.target) && e.target !== menuToggle) closeSidebar();
+});
+
+if (localStorage.getItem("cofre-sidebar") === "closed") closeSidebar();
+updateSidebar();
 
 // Ordem canônica das milestones (eixo Y, de baixo para cima)
 const ORDEM = [
@@ -143,8 +367,8 @@ const NOMES = {
   digito3_papel:      "Papel da gaveta (3º díg.)",
   cofre_aberto:       "🏆 Cofre aberto",
 };
-const CORES = ["#4fc3f7", "#ff8a65", "#aed581", "#ba68c8",
-               "#ffd54f", "#f06292", "#4db6ac", "#e0e0e0"];
+const CORES = ["#7da67d", "#c4a93d", "#9ab89a", "#b8942e",
+               "#d4c76a", "#8a9a84", "#a8b88a", "#c9c9a8"];
 
 let runs = [];
 let selecionadas = new Map();   // run_id -> cor
@@ -347,7 +571,7 @@ function renderDetalhe() {
   const ms = (r.milestones || []).slice().sort((a, b) => a.t - b.t);
   const linhas = ms.map((m, i) =>
     `<tr><td>${i + 1}</td><td>${m.label}</td><td>${fmtT(m.t)}</td><td>${m.passo}</td></tr>`).join("");
-  det.innerHTML = `<h2 style="margin-top:16px">Milestones — ${r.model} (${fmtData(r.started_at)}) · modo ${esc(r.modo || "livre")}</h2>
+  det.innerHTML = `<h2 class="secao-titulo">Milestones — ${r.model} (${fmtData(r.started_at)}) · modo ${esc(r.modo || "livre")}</h2>
     <table><thead><tr><th>#</th><th>Milestone</th><th>Tempo</th><th>Passo</th></tr></thead>
     <tbody>${linhas || '<tr><td colspan="4" class="vazio">Nenhuma milestone atingida.</td></tr>'}</tbody></table>`;
 
@@ -371,7 +595,7 @@ function renderDetalhe() {
   const sys = r.system_prompt
     ? `<details class="turno"><summary><strong>System prompt</strong> <span class="t">· enviado em toda chamada</span></summary><pre>${esc(r.system_prompt)}</pre></details>`
     : "";
-  det.innerHTML += `<h2 style="margin-top:16px">Conversa da jogada (${hist.length} turnos)</h2>${sys}${turnos}`;
+  det.innerHTML += `<h2 class="secao-titulo">Conversa da jogada (${hist.length} turnos)</h2>${sys}${turnos}`;
 }
 
 // listeners

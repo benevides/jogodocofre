@@ -1,0 +1,31 @@
+# Segredos — NUNCA commitar (use env.example como modelo)
+.env
+.env.*
+!env.example
+
+# Ambientes virtuais Python
+venv/
+.venv/
+env/
+
+# Bytecode / caches Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+
+# Sistema operacional
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Logs e temporários
+*.log
+*.tmp

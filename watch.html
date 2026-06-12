@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>O Cofre V2 — Watch</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+  :root{--bg:#161719;--panel:#1d1e21;--ink:#e7e7e9;--muted:#8b8d93;--line:#2c2e33;--accent:#2bb38a;--v2:#e0873a;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{background:var(--bg);color:var(--ink);font-family:"JetBrains Mono",monospace;height:100%;overflow:hidden;}
+  #stage{position:fixed;inset:0;}
+  #stage canvas{width:100%!important;height:100%!important;}
+
+  /* HUD topo */
+  #hud-top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:14px 18px;pointer-events:none;z-index:10;}
+  .hud-block{background:rgba(22,23,25,.75);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:12px;line-height:1.8;}
+  .hud-block .lbl{color:var(--muted);font-size:10px;letter-spacing:.5px;}
+  .hud-block .val{color:var(--accent);font-weight:500;}
+
+  /* Badge V2 */
+  #v2-badge{background:var(--v2);color:#111;font-size:10px;font-weight:700;letter-spacing:1.5px;padding:3px 8px;border-radius:4px;pointer-events:none;}
+
+  /* Observação em baixo */
+  #hud-bottom{position:fixed;bottom:0;left:0;right:0;padding:14px 18px;z-index:10;}
+  #obs-box{background:rgba(22,23,25,.85);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:8px;padding:10px 16px;font-size:12px;line-height:1.6;max-height:80px;overflow:hidden;}
+
+  /* Botões */
+  #controls{position:fixed;top:14px;right:18px;display:flex;gap:8px;z-index:11;pointer-events:all;align-items:center;}
+  button.hbtn{font-family:inherit;font-size:11px;font-weight:500;padding:7px 13px;background:rgba(22,23,25,.85);border:1px solid var(--line);color:var(--muted);border-radius:7px;cursor:pointer;transition:.15s;backdrop-filter:blur(6px);}
+  button.hbtn:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* Status banner */
+  #status-banner{position:fixed;top:54px;left:50%;transform:translateX(-50%);background:rgba(22,23,25,.85);border:1px solid var(--line);border-radius:20px;padding:5px 16px;font-size:11px;color:var(--muted);z-index:10;backdrop-filter:blur(6px);white-space:nowrap;}
+  #status-banner.playing{color:var(--accent);}
+
+  /* Balão de pensamento */
+  #bubble{
+    position:fixed;max-width:360px;width:max-content;
+    background:#f5f3e8;color:#2a2a2a;border-radius:14px;
+    padding:12px 16px;font-size:var(--bubble-size,15px);line-height:1.55;
+    transform:translate(-50%,-100%) translateY(-12px);
+    pointer-events:none;z-index:20;display:none;
+    box-shadow:0 6px 24px rgba(0,0,0,.5);
+  }
+  #bubble::after{content:'';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);border:10px solid transparent;border-top-color:#f5f3e8;border-bottom:none;}
+  #bubble.below{transform:translate(-50%, 12px);}
+  #bubble.below::after{bottom:auto;top:-10px;border-top-color:transparent;border-bottom:10px solid #f5f3e8;border-top:none;}
+
+  /* Controle de fonte */
+  #font-ctrl{display:flex;align-items:center;gap:4px;background:rgba(22,23,25,.85);border:1px solid var(--line);border-radius:7px;padding:4px 8px;backdrop-filter:blur(6px);font-size:11px;color:var(--muted);}
+  #font-ctrl button{font-family:inherit;font-size:13px;font-weight:700;background:none;border:none;color:var(--muted);cursor:pointer;padding:0 4px;line-height:1;transition:.1s;}
+  #font-ctrl button:hover{color:var(--accent);}
+  #font-size-lbl{min-width:30px;text-align:center;color:var(--ink);}
+
+  /* God Messages */
+  #god-panel{position:fixed;bottom:90px;right:18px;width:280px;z-index:15;}
+  #god-panel .gp-title{font-size:10px;letter-spacing:1px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;}
+  #god-panel .gp-title span{color:#f0c040;}
+  #god-input{width:100%;font-family:inherit;font-size:12px;padding:8px 10px;background:rgba(22,23,25,.9);border:1px solid #f0c04055;color:var(--ink);border-radius:7px 7px 0 0;resize:none;height:56px;backdrop-filter:blur(6px);}
+  #god-input:focus{outline:none;border-color:#f0c040;box-shadow:0 0 0 2px rgba(240,192,64,.15);}
+  #god-send{width:100%;font-family:inherit;font-size:11px;font-weight:700;padding:7px;background:#f0c040;color:#111;border:none;border-radius:0 0 7px 7px;cursor:pointer;letter-spacing:.5px;transition:.15s;}
+  #god-send:hover{background:#ffd700;}
+  #god-send:active{transform:scale(.98);}
+
+  @keyframes godFlash{0%{opacity:0}20%{opacity:.35}100%{opacity:0}}
+  #god-flash{position:fixed;inset:0;background:radial-gradient(circle,#f0c04044 0%,transparent 70%);pointer-events:none;z-index:50;opacity:0;}
+
+  #win{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;background:rgba(10,10,10,.8);z-index:100;}
+  #win.show{display:flex;}
+  #win .big{font-size:28px;font-weight:700;letter-spacing:3px;color:var(--accent);margin-bottom:12px;}
+  #win .sub{font-size:13px;color:var(--muted);}
+  #win button{margin-top:22px;padding:10px 22px;font-family:inherit;font-size:12px;background:var(--accent);color:#111;border:none;border-radius:7px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div id="stage"></div>
+
+<div id="hud-top">
+  <div class="hud-block">
+    <div class="lbl">LOCAL</div><div class="val" id="h-room">-</div>
+    <div class="lbl">INVENTÁRIO</div><div class="val" id="h-inv">-</div>
+    <div class="lbl">GOD MESSAGES</div><div class="val" id="h-god">0 ⚡</div>
+  </div>
+</div>
+
+<div id="controls">
+  <span id="v2-badge">V2 · EXPLORAÇÃO</span>
+  <div id="font-ctrl">
+    <span>💬</span>
+    <button id="font-down">−</button>
+    <span id="font-size-lbl">15px</span>
+    <button id="font-up">+</button>
+  </div>
+  <button class="hbtn" id="btn-reset">↻ reset</button>
+</div>
+
+<div id="status-banner">⏳ aguardando a IA começar...</div>
+
+<div id="bubble"></div>
+
+<div id="hud-bottom">
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+    <span style="font-size:11px;color:var(--muted)">passos: <b id="h-steps" style="color:var(--ink)">-</b></span>
+    <span style="font-size:11px;color:var(--muted)">score: <b id="h-score" style="color:var(--accent)">-</b></span>
+  </div>
+  <div id="obs-box">pronto.</div>
+</div>
+
+<div id="god-flash"></div>
+
+<div id="god-panel">
+  <div class="gp-title">
+    <span>⚡ GOD MESSAGES</span>
+    <span id="god-count">0 enviadas</span>
+  </div>
+  <textarea id="god-input" placeholder="Mande uma dica divina pra IA..."></textarea>
+  <button id="god-send">⚡ ENVIAR MENSAGEM DIVINA</button>
+</div>
+
+<div id="win">
+  <div class="big">IA VENCEU 🎉</div>
+  <div class="sub" id="win-txt">...</div>
+  <button id="win-reset">jogar novamente</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+
+const SERVER   = 'http://localhost:5002';
+const ROOM_POS = {sala:[0,0], cozinha:[-9.5,0], quarto:[0,-9.5], escritorio:[9.5,0]};
+
+// ── RENDERER ────────────────────────────────────────────────────────────────
+const stage  = document.getElementById('stage');
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x23252b);
+scene.fog        = new THREE.Fog(0x23252b, 25, 62);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 200);
+camera.position.set(0, 18, 22);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+stage.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1, -3);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance   = 5;
+controls.maxDistance   = 55;
+controls.maxPolarAngle = Math.PI / 2.1;
+controls.update();
+
+// ── LIGHTS ──────────────────────────────────────────────────────────────────
+const hemi = new THREE.HemisphereLight(0xffffff, 0x40434d, 1.0);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.position.set(8,18,6); sun.castShadow = true;
+scene.add(sun);
+
+// ── HELPERS ─────────────────────────────────────────────────────────────────
+function box(w,h,d,col,recv){
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({color:col, roughness:.85})
+  );
+  if(recv) m.receiveShadow = true;
+  return m;
+}
+function add(m){ scene.add(m); return m; }
+function floor(cx,cz,s,col){ const f=box(s,.1,s,col,true); f.position.set(cx,-.05,cz); return add(f); }
+function strip(x,z,w,d){ const f=box(w,.07,d,0x3a3d45,true); f.position.set(x,-.04,z); add(f); }
+function wall(cx,cz,w,d){ const m=box(w,1.4,d,0x53575f); m.position.set(cx,.7,cz); add(m); }
+function room(cx,cz,s,col,skip){
+  floor(cx,cz,s,col); const h=s/2;
+  if(skip!=='N') wall(cx,cz-h,s,.2);
+  if(skip!=='S') wall(cx,cz+h,s,.2);
+  if(skip!=='E') wall(cx+h,cz,.2,s);
+  if(skip!=='W') wall(cx-h,cz,.2,s);
+}
+function hl(m){ m.material.emissive=new THREE.Color(0x1d9e75); m.material.emissiveIntensity=.45; }
+function unhl(m){ m.material.emissive=new THREE.Color(0); m.material.emissiveIntensity=0; }
+
+// ── ROOMS ────────────────────────────────────────────────────────────────────
+room( 0,    0,   7, 0x6b6f78, 'X');
+room(-9.5,  0,   6, 0x4a5a52, 'E');
+room( 0,  -9.5,  6, 0x5a4a5a, 'S');
+room( 9.5,  0,   6, 0x5a554a, 'W');
+strip(-6.2, 0, 3.4, 2);
+strip(0, -6.2, 2, 3.4);
+strip(6.2, 0, 3.4, 2);
+
+// ── OBJETOS PRINCIPAIS (iguais ao V1) ────────────────────────────────────────
+
+// Sala
+const table   = add(box(1.6,.6,.9,  0x8a6a4a)); table.position.set(0,.3,-2.7);
+const note    = add(box(.4,.05,.3,  0xf2efe0)); note.position.set(0,.63,-2.7);
+
+// Sala — red herring: quadro_antigo na parede oeste
+const oldPainting = add(box(1.0,.7,.05, 0x7a6a4a)); oldPainting.position.set(-3.3,1.0,0);
+
+// Cozinha
+const cabinet = add(box(1.4,1.6,.7, 0x6f5a3a)); cabinet.position.set(-9.5,.8,-2.6);
+const cabDoor = add(box(1.36,1.5,.06,0x7a653f)); cabDoor.position.set(-9.5,.8,-2.24);
+
+// Cozinha — red herrings
+const shelf = add(box(1.2,.08,.25, 0x9a7a5a)); shelf.position.set(-12.0,.9, 0);
+const fogao = add(box(1.0,.7,.7,   0x5a5a62)); fogao.position.set(-9.5,.35, 2.4);
+
+// Quarto
+const dresser = add(box(1.6,1.0,.8, 0x7a5a6a)); dresser.position.set(0,.5,-11.6);
+const dreDraw = add(box(1.4,.4,.1,  0x8a6a7a)); dreDraw.position.set(0,.55,-11.18);
+
+// Quarto — red herrings: cama e guarda-roupa
+const bed      = add(box(2.0,.35,1.2, 0x8a7a9a)); bed.position.set(2.0,.18,-9.5);
+const pillow   = add(box(.8,.12,.5,   0xf0ede8)); pillow.position.set(2.0,.42,-10.0);
+const wardrobe = add(box(1.2,1.8,.5,  0x5a4a3a)); wardrobe.position.set(-2.6,.9,-9.5);
+
+// Escritório
+const safe     = add(box(1.2,1.2,1.0,0x9aa0a8)); safe.position.set(9.5,.6,-2.4);
+const safeDoor = add(box(1.1,1.1,.08,0xb0b6be)); safeDoor.position.set(9.5,.6,-1.88);
+const painting = add(box(1.2,.9,.06, 0xcaa05a)); painting.position.set(12.3,1.0,0);
+const lockDraw = add(box(1.4,1.0,.8, 0x6a5a4a)); lockDraw.position.set(9.5,.5,2.6);
+const lockFace = add(box(1.3,.9,.08, 0x7a6a4f)); lockFace.position.set(9.5,.5,2.18);
+
+// Escritório — red herrings: escrivaninha e livro
+const desk = add(box(1.6,.75,.7, 0x7a6a4a)); desk.position.set(7.3,.38, 0);
+const book = add(box(.25,.35,.18,0x4a3a5a)); book.position.set(7.3,.76,.1);
+
+// Chave (invisível até ser pega)
+const key = new THREE.Mesh(
+  new THREE.BoxGeometry(.18,.18,.18),
+  new THREE.MeshStandardMaterial({color:0xefc23a, emissive:0x6a5400, emissiveIntensity:.6})
+);
+key.visible = false;
+scene.add(key);
+
+// ── AGENTE ───────────────────────────────────────────────────────────────────
+const agent  = new THREE.Group();
+const agBody = new THREE.Mesh(
+  new THREE.CylinderGeometry(.34,.34,1.0,18),
+  new THREE.MeshStandardMaterial({color:0x378add, roughness:.5})
+);
+agBody.position.y = .5;
+const agHead = new THREE.Mesh(
+  new THREE.SphereGeometry(.3,18,18),
+  new THREE.MeshStandardMaterial({color:0x85b7eb, roughness:.5})
+);
+agHead.position.y = 1.15;
+agent.add(agBody); agent.add(agHead);
+agent.position.set(0,0,0);
+scene.add(agent);
+
+// ── BALÃO DE PENSAMENTO ──────────────────────────────────────────────────────
+const bubble  = document.getElementById('bubble');
+const bubbleV = new THREE.Vector3();
+let   currentThought = '';
+
+const FONT_MIN = 11, FONT_MAX = 24;
+let bubbleFontSize = parseInt(localStorage.getItem('bubbleFontSize') || '15');
+function applyFontSize(){
+  document.documentElement.style.setProperty('--bubble-size', bubbleFontSize + 'px');
+  document.getElementById('font-size-lbl').textContent = bubbleFontSize + 'px';
+}
+applyFontSize();
+document.getElementById('font-up').onclick   = ()=>{ bubbleFontSize=Math.min(FONT_MAX,bubbleFontSize+1); applyFontSize(); localStorage.setItem('bubbleFontSize',bubbleFontSize); };
+document.getElementById('font-down').onclick = ()=>{ bubbleFontSize=Math.max(FONT_MIN,bubbleFontSize-1); applyFontSize(); localStorage.setItem('bubbleFontSize',bubbleFontSize); };
+
+function updateBubble(){
+  if(!currentThought){ bubble.style.display='none'; return; }
+  agent.getWorldPosition(bubbleV);
+  bubbleV.y += 2.2;
+  const proj = bubbleV.project(camera);
+  const x = ( proj.x*.5+.5)*innerWidth;
+  const y = (-proj.y*.5+.5)*innerHeight;
+  if(proj.z>1){ bubble.style.display='none'; return; }
+  bubble.textContent = currentThought;
+  bubble.style.display = 'block';
+  bubble.style.left = x + 'px';
+  const bh = bubble.offsetHeight||80;
+  if(y-bh-16<0){
+    bubble.classList.add('below'); bubble.style.top=y+'px';
+  } else {
+    bubble.classList.remove('below'); bubble.style.top=y+'px';
+  }
+}
+
+// ── ANIMAÇÃO ─────────────────────────────────────────────────────────────────
+let animTarget = null;
+function animateTo(room){
+  const p = ROOM_POS[room];
+  if(p) animTarget = new THREE.Vector3(p[0],0,p[1]);
+}
+
+// ── RENDER LOOP ───────────────────────────────────────────────────────────────
+(function loop(){
+  requestAnimationFrame(loop);
+  controls.update();
+  if(animTarget){
+    agent.position.lerp(animTarget,.07);
+    if(agent.position.distanceTo(animTarget)<.2) animTarget=null;
+  }
+  if(key.visible){
+    key.position.set(agent.position.x, 1.7, agent.position.z);
+    key.rotation.y += .03;
+  }
+  updateBubble();
+  renderer.render(scene, camera);
+})();
+
+// ── POLLING ───────────────────────────────────────────────────────────────────
+let lastRoom='', gameRunning=false;
+
+async function poll(){
+  try{
+    const res = await fetch(SERVER+'/current-game');
+    const s   = await res.json();
+    const banner = document.getElementById('status-banner');
+
+    if(s.status==='playing' && s.room){
+      if(!gameRunning){ gameRunning=true; banner.className='playing'; banner.textContent='▶ IA explorando (V2)...'; }
+
+      if(s.room !== lastRoom){ animateTo(s.room); lastRoom=s.room; }
+
+      if(s.thought && s.thought !== currentThought){
+        currentThought = s.thought;
+        clearTimeout(bubble._timer);
+        bubble._timer = setTimeout(()=>{ currentThought=''; bubble.style.display='none'; }, 6000);
+      }
+
+      // Infere estado dos objetos a partir de valid_actions (que o watch ainda recebe)
+      const va = (s.valid_actions||[]).join(' ');
+
+      // Armário da cozinha
+      if(!va.includes('abrir armario')){
+        cabDoor.rotation.y=-0.9; cabDoor.position.x=-10.05; cabDoor.position.z=-2.0;
+        hl(cabinet);
+      }
+
+      // Chave
+      if(s.inventory && s.inventory.includes('chave')){
+        key.visible=true;
+        hl(dresser);
+        dreDraw.position.z=-10.9;
+      }
+
+      // Quadro do escritório examinado (pintado de highlight quando agente está no escritório e já examinou)
+      // Usamos: se NOT in valid_actions E agente está no escritório → já examinou
+      if(s.room==='escritorio' && !va.includes('examinar quadro')){ hl(painting); }
+
+      // Gaveta trancada do escritório (destrancada quando "usar chave em gaveta" some da lista
+      // e a gaveta no escritório pode ser aberta — "abrir gaveta" aparece no escritório)
+      if(s.room==='escritorio' && va.includes('abrir gaveta')){ lockFace.position.z=2.55; hl(lockDraw); }
+
+      // Vitória
+      if(s.terminated){
+        safeDoor.rotation.y=-1.1; safeDoor.position.x=8.95; safeDoor.position.z=-1.45;
+        safe.material.color=new THREE.Color(0x1d9e75);
+        currentThought='';
+        document.getElementById('win').classList.add('show');
+        document.getElementById('win-txt').textContent =
+          'passos: '+s.steps+' · score: '+s.score+' · god messages: '+(s.god_message_count||0)+' ⚡';
+      }
+
+      // HUD
+      document.getElementById('h-room').textContent  = s.room_name||'-';
+      document.getElementById('h-inv').textContent   = s.inventory&&s.inventory.length ? s.inventory.join(', ') : '-';
+      document.getElementById('h-god').textContent   = (s.god_message_count||0)+' ⚡';
+      document.getElementById('god-count').textContent = (s.god_message_count||0)+' enviada'+(s.god_message_count!==1?'s':'');
+      document.getElementById('h-steps').textContent = s.steps;
+      document.getElementById('h-score').textContent = (s.score>=0?'+':'')+s.score;
+      document.getElementById('obs-box').textContent = s.obs||'';
+
+    } else if(s.status==='waiting'){
+      if(gameRunning){ gameRunning=false; banner.className=''; banner.textContent='⏳ aguardando a IA começar...'; }
+    }
+  } catch(e){
+    document.getElementById('status-banner').textContent='❌ sem conexão com o servidor (localhost:5002)';
+  }
+}
+setInterval(poll, 500);
+poll();
+
+// ── GOD MESSAGES ──────────────────────────────────────────────────────────────
+const godFlash = document.getElementById('god-flash');
+
+async function sendGodMessage(){
+  const input = document.getElementById('god-input');
+  const msg   = input.value.trim();
+  if(!msg) return;
+  try{
+    const r    = await fetch(SERVER+'/god-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
+    const data = await r.json();
+    input.value = '';
+    godFlash.style.animation='none';
+    godFlash.offsetHeight;
+    godFlash.style.animation='godFlash 1.2s ease-out forwards';
+    const n = data.count;
+    document.getElementById('god-count').textContent  = n+' enviada'+(n!==1?'s':'');
+    document.getElementById('h-god').textContent      = n+' ⚡';
+    document.getElementById('god-send').textContent   = '⚡ ENVIADO! ('+n+')';
+    setTimeout(()=>{ document.getElementById('god-send').textContent='⚡ ENVIAR MENSAGEM DIVINA'; },2000);
+  } catch(e){
+    alert('Erro ao enviar: '+e.message);
+  }
+}
+document.getElementById('god-send').onclick = sendGodMessage;
+document.getElementById('god-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendGodMessage(); }
+});
+
+// ── RESET ─────────────────────────────────────────────────────────────────────
+async function doReset(){
+  await fetch(SERVER+'/reset');
+  await fetch(SERVER+'/thought',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({thought:''})}).catch(()=>{});
+
+  // Reseta portas e posições
+  cabDoor.rotation.y=0;   cabDoor.position.set(-9.5,.8,-2.24);
+  dreDraw.position.set(0,.55,-11.18);
+  safeDoor.rotation.y=0;  safeDoor.position.set(9.5,.6,-1.88);
+  safe.material.color=new THREE.Color(0x9aa0a8);
+  lockFace.position.set(9.5,.5,2.18);
+
+  // Remove highlights
+  [note,cabinet,dresser,painting,lockDraw,oldPainting].forEach(unhl);
+
+  key.visible=false;
+  agent.position.set(0,0,0);
+  lastRoom=''; gameRunning=false; currentThought='';
+  clearTimeout(bubble._timer);
+  bubble.style.display='none'; bubble.textContent='';
+
+  document.getElementById('win').classList.remove('show');
+  document.getElementById('obs-box').textContent='partida reiniciada — aguardando IA...';
+  document.getElementById('status-banner').className='';
+  document.getElementById('status-banner').textContent='⏳ aguardando a IA começar...';
+}
+document.getElementById('btn-reset').onclick  = doReset;
+document.getElementById('win-reset').onclick  = doReset;
+
+// ── RESIZE ────────────────────────────────────────────────────────────────────
+window.addEventListener('resize',()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+})();
+</script>
+</body>
+</html>

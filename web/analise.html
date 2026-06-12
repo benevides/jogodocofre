@@ -346,7 +346,7 @@ function renderDetalhe() {
   const ms = (r.milestones || []).slice().sort((a, b) => a.t - b.t);
   const linhas = ms.map((m, i) =>
     `<tr><td>${i + 1}</td><td>${m.label}</td><td>${fmtT(m.t)}</td><td>${m.passo}</td></tr>`).join("");
-  det.innerHTML = `<h2 style="margin-top:16px">Milestones — ${r.model} (${fmtData(r.started_at)})</h2>
+  det.innerHTML = `<h2 style="margin-top:16px">Milestones — ${r.model} (${fmtData(r.started_at)}) · modo ${esc(r.modo || "livre")}</h2>
     <table><thead><tr><th>#</th><th>Milestone</th><th>Tempo</th><th>Passo</th></tr></thead>
     <tbody>${linhas || '<tr><td colspan="4" class="vazio">Nenhuma milestone atingida.</td></tr>'}</tbody></table>`;
 

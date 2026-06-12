@@ -1,0 +1,351 @@
+{
+  "run_id": "20260612_115438_Kimi",
+  "model": "Kimi",
+  "started_at": "2026-06-12T11:54:38",
+  "modo": "livre",
+  "venceu": true,
+  "tempo_total": 130.68,
+  "passos": 36,
+  "score": 65.0,
+  "system_prompt": "(jogando via MCP)",
+  "milestones": [
+    {
+      "id": "dica_quadro_antigo",
+      "label": "Leu o verso do quadro antigo (dica dos guardioes)",
+      "passo": 4,
+      "t": 16.51
+    },
+    {
+      "id": "dica_bilhete",
+      "label": "Leu o bilhete (dica geral)",
+      "passo": 6,
+      "t": 16.52
+    },
+    {
+      "id": "digito1_canecas",
+      "label": "Viu as canecas no armario da cozinha (1o digito)",
+      "passo": 10,
+      "t": 30.39
+    },
+    {
+      "id": "pegou_chave",
+      "label": "Pegou a chave no quarto",
+      "passo": 25,
+      "t": 84.84
+    },
+    {
+      "id": "digito2_quadro",
+      "label": "Olhou atras do quadro do escritorio (2o digito)",
+      "passo": 29,
+      "t": 102.61
+    },
+    {
+      "id": "destrancou_gaveta",
+      "label": "Destrancou a gaveta do escritorio",
+      "passo": 34,
+      "t": 120.52
+    },
+    {
+      "id": "digito3_papel",
+      "label": "Leu o papel da gaveta trancada (3o digito)",
+      "passo": 35,
+      "t": 124.76
+    },
+    {
+      "id": "cofre_aberto",
+      "label": "Abriu o cofre",
+      "passo": 36,
+      "t": 130.68
+    }
+  ],
+  "historico": [
+    {
+      "passo": 1,
+      "acao": "examinar o quadro antigo",
+      "t": 11.07,
+      "reward": -1.0,
+      "resultado": "Nao ha 'o quadro antigo' aqui.",
+      "pensamento": "O quadro pode esconder algo relacionado ao cofre ou à senha."
+    },
+    {
+      "passo": 2,
+      "acao": "ler o bilhete",
+      "t": 11.07,
+      "reward": -1.0,
+      "resultado": "Nao entendi 'ler o bilhete'. Tente: examinar, abrir, pegar, usar, ir para, digitar, olhar, inventario.",
+      "pensamento": "Quero descobrir pistas sobre o cofre. O bilhete pode conter instruções ou códigos."
+    },
+    {
+      "passo": 3,
+      "acao": "examinar a mesa",
+      "t": 11.08,
+      "reward": -1.0,
+      "resultado": "Nao ha 'a mesa' aqui.",
+      "pensamento": "A mesa pode ter gavetas ou objetos úteis para abrir o cofre."
+    },
+    {
+      "passo": 4,
+      "acao": "examinar quadro_antigo",
+      "t": 16.51,
+      "reward": -1.0,
+      "resultado": "Um quadro de paisagem desbotado. Voce o inclina para ver o verso. Ha um papel colado atras, escrito a mao:",
+      "pensamento": "Vou examinar o quadro antigo."
+    },
+    {
+      "passo": 5,
+      "acao": "examinar mesa",
+      "t": 16.51,
+      "reward": -1.0,
+      "resultado": "Uma mesa de madeira escura. Superficie limpa.",
+      "pensamento": "Vou examinar a mesa."
+    },
+    {
+      "passo": 6,
+      "acao": "examinar bilhete",
+      "t": 16.52,
+      "reward": -1.0,
+      "resultado": "Um bilhete velho e rasgado. Partes ilegíveis, mas da pra ler: '...o cofre... tres numeros... conta o que ve... olha por tras... abre com a chave... junta os num",
+      "pensamento": "Vou usar o verbo examinar para ler o bilhete."
+    },
+    {
+      "passo": 7,
+      "acao": "ir para cozinha",
+      "t": 25.44,
+      "reward": -1.0,
+      "resultado": "Voce vai para Cozinha.",
+      "pensamento": "A primeira pista fala no que sacia a sede, provavelmente algo na cozinha."
+    },
+    {
+      "passo": 8,
+      "acao": "examinar fogao",
+      "t": 30.39,
+      "reward": -1.0,
+      "resultado": "Um fogao velho. Frio. Nada em cima.",
+      "pensamento": "Verificar se há algo no fogão."
+    },
+    {
+      "passo": 9,
+      "acao": "examinar prateleira",
+      "t": 30.39,
+      "reward": -1.0,
+      "resultado": "Uma prateleira de madeira. Esta vazia.",
+      "pensamento": "Pode haver copos, garrafas ou algo que sacie a sede."
+    },
+    {
+      "passo": 10,
+      "acao": "abrir armario",
+      "t": 30.39,
+      "reward": -1.0,
+      "resultado": "Voce abre o armario. Dentro ha: tres canecas.",
+      "pensamento": "O armário está fechado, pode conter itens úteis."
+    },
+    {
+      "passo": 11,
+      "acao": "examinar canecas",
+      "t": 35.07,
+      "reward": -1.0,
+      "resultado": "Nao ha 'canecas' aqui.",
+      "pensamento": "As canecas saciam a sede, devem ter o primeiro dígito."
+    },
+    {
+      "passo": 12,
+      "acao": "examinar caneca",
+      "t": 39.87,
+      "reward": -1.0,
+      "resultado": "Nao ha 'caneca' aqui.",
+      "pensamento": "Vou examinar uma caneca de cada vez ou o conjunto."
+    },
+    {
+      "passo": 13,
+      "acao": "pegar caneca",
+      "t": 44.79,
+      "reward": -1.0,
+      "resultado": "Nao da pra pegar 'caneca'.",
+      "pensamento": "Tentar pegar a caneca."
+    },
+    {
+      "passo": 14,
+      "acao": "olhar armario",
+      "t": 44.79,
+      "reward": -1.0,
+      "resultado": "Dentro do armario ha: tres canecas.",
+      "pensamento": "Vou olhar o armário novamente para ver os itens corretamente."
+    },
+    {
+      "passo": 15,
+      "acao": "examinar tres canecas",
+      "t": 49.61,
+      "reward": -1.0,
+      "resultado": "Nao ha 'tres canecas' aqui.",
+      "pensamento": "Talvez o item se chame 'tres canecas' como um grupo."
+    },
+    {
+      "passo": 16,
+      "acao": "examinar armario",
+      "t": 54.56,
+      "reward": -1.0,
+      "resultado": "Dentro do armario ha: tres canecas.",
+      "pensamento": "Examinar o armário pode revelar os dígitos nas canecas."
+    },
+    {
+      "passo": 17,
+      "acao": "ir para quarto",
+      "t": 61.28,
+      "reward": -1.0,
+      "resultado": "Nao da pra ir para 'quarto' daqui. Saidas: sala.",
+      "pensamento": "Vou procurar decorações de parede no quarto."
+    },
+    {
+      "passo": 18,
+      "acao": "ir para sala",
+      "t": 65.62,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": "Voltar para a sala para acessar os outros cômodos."
+    },
+    {
+      "passo": 19,
+      "acao": "ir para quarto",
+      "t": 70.13,
+      "reward": -1.0,
+      "resultado": "Voce vai para Quarto.",
+      "pensamento": "Explorar o quarto para achar decorações de parede e outras pistas."
+    },
+    {
+      "passo": 20,
+      "acao": "ir para escritorio",
+      "t": 70.13,
+      "reward": -1.0,
+      "resultado": "Nao da pra ir para 'escritorio' daqui. Saidas: sala.",
+      "pensamento": "Explorar o escritório para achar a chave ou objetos relacionados."
+    },
+    {
+      "passo": 21,
+      "acao": "examinar guarda_roupa",
+      "t": 74.98,
+      "reward": -1.0,
+      "resultado": "Um guarda-roupa. Roupas velhas penduradas. Nada util.",
+      "pensamento": "Verificar o guarda-roupa."
+    },
+    {
+      "passo": 22,
+      "acao": "examinar cama",
+      "t": 74.98,
+      "reward": -1.0,
+      "resultado": "Uma cama arrumada. Voce verifica embaixo: nada.",
+      "pensamento": "Verificar se há algo escondido na cama."
+    },
+    {
+      "passo": 23,
+      "acao": "abrir gaveta",
+      "t": 74.98,
+      "reward": -1.0,
+      "resultado": "Voce abre o gaveta. Ha algo dentro.",
+      "pensamento": "A gaveta pode conter a chave ou pistas."
+    },
+    {
+      "passo": 24,
+      "acao": "examinar gaveta",
+      "t": 80.02,
+      "reward": -1.0,
+      "resultado": "Dentro do gaveta ha: chave.",
+      "pensamento": "Ver o que tem dentro da gaveta."
+    },
+    {
+      "passo": 25,
+      "acao": "pegar chave",
+      "t": 84.84,
+      "reward": -1.0,
+      "resultado": "Voce pega: chave.",
+      "pensamento": "Pegar a chave para abrir o cofre."
+    },
+    {
+      "passo": 26,
+      "acao": "ir para sala",
+      "t": 91.3,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": "Voltar para sala para ir ao escritório."
+    },
+    {
+      "passo": 27,
+      "acao": "ir para escritorio",
+      "t": 95.66,
+      "reward": -1.0,
+      "resultado": "Voce vai para Escritorio.",
+      "pensamento": "Explorar o escritório para encontrar mais pistas."
+    },
+    {
+      "passo": 28,
+      "acao": "examinar cofre",
+      "t": 102.61,
+      "reward": -1.0,
+      "resultado": "Um cofre de aco pesado. Na frente, um painel com botoes numerados.",
+      "pensamento": "Examinar o cofre para entender como abri-lo."
+    },
+    {
+      "passo": 29,
+      "acao": "examinar quadro",
+      "t": 102.61,
+      "reward": -1.0,
+      "resultado": "Voce olha atras do quadro. Ha um numero riscado na madeira: 1.",
+      "pensamento": "O quadro decora a parede e pode ter o segundo dígito."
+    },
+    {
+      "passo": 30,
+      "acao": "examinar escrivaninha",
+      "t": 102.63,
+      "reward": -1.0,
+      "resultado": "Uma escrivaninha coberta de poeira. Gavetas vazias.",
+      "pensamento": "Verificar se há algo na escrivaninha."
+    },
+    {
+      "passo": 31,
+      "acao": "examinar livro",
+      "t": 103.05,
+      "reward": -1.0,
+      "resultado": "Um livro velho. Paginas em branco. Nada escrito.",
+      "pensamento": "O livro pode conter pistas."
+    },
+    {
+      "passo": 32,
+      "acao": "abrir gaveta",
+      "t": 111.13,
+      "reward": -1.0,
+      "resultado": "O gaveta esta trancado. Precisa de alguma coisa para abrir.",
+      "pensamento": "A chave pode abrir a gaveta trancada do escritório."
+    },
+    {
+      "passo": 33,
+      "acao": "usar chave gaveta",
+      "t": 115.85,
+      "reward": -1.0,
+      "resultado": "Formato: usar <item> em <objeto>.",
+      "pensamento": "Usar a chave para destrancar a gaveta."
+    },
+    {
+      "passo": 34,
+      "acao": "usar chave em gaveta",
+      "t": 120.52,
+      "reward": -1.0,
+      "resultado": "Voce usa a chave e destranca o gaveta. Agora da pra abrir.",
+      "pensamento": "Usar a chave na gaveta trancada."
+    },
+    {
+      "passo": 35,
+      "acao": "abrir gaveta",
+      "t": 124.76,
+      "reward": -1.0,
+      "resultado": "Voce abre o gaveta. Dentro ha: um papel com um numero: 9.",
+      "pensamento": "Abrir a gaveta destrancada."
+    },
+    {
+      "passo": 36,
+      "acao": "digitar 319",
+      "t": 130.68,
+      "reward": 100.0,
+      "resultado": "Voce digita 319... CLICK. O cofre abre! VOCE VENCEU.",
+      "pensamento": "Digitar a senha 319 no cofre."
+    }
+  ]
+}

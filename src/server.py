@@ -19,6 +19,7 @@ import os
 import re
 import time
 import json
+import threading
 
 sys.path.insert(0, os.path.dirname(__file__))
 from cofre import Cofre
@@ -29,6 +30,16 @@ WEB_DIR = os.path.join(RAIZ, "web")
 
 load_dotenv(os.path.join(RAIZ, ".env"))
 PORT = int(os.getenv("COFRE_PORT", "5002"))
+
+# Modos de jogo:
+#   livre  — ações em paralelo permitidas (o "glitch" que as IAs descobrem:
+#            mandar trocentas ações ao mesmo tempo)
+#   turnos — modo realista: UMA ação por vez. A resposta só é entregue quando
+#            a ação "termina de verdade" (andar até outra sala leva o tempo da
+#            animação 3D — sem teletransporte). Ações paralelas são recusadas.
+MODO_PADRAO = os.getenv("COFRE_MODO", "livre").strip().lower()
+TEMPO_MOVER = float(os.getenv("COFRE_TEMPO_MOVER", "3"))    # andar entre salas
+TEMPO_ACAO  = float(os.getenv("COFRE_TEMPO_ACAO",  "1.5"))  # demais ações
 
 app = Flask(__name__)
 env = None
@@ -45,8 +56,11 @@ run_id            = None   # ex: 20260612_153000_omnikimi
 run_model         = ""
 run_started_iso   = ""
 run_system_prompt = ""
+run_modo          = MODO_PADRAO
 historico         = []    # [{passo, acao, t, reward, resultado, pensamento, conversa}]
 conversa_pendente = None  # última troca agente↔LLM, anexada ao próximo /step
+acao_em_andamento = False # modo turnos: há uma ação segurando a resposta agora
+passo_lock        = threading.Lock()  # serializa ações simultâneas
 
 
 def _salvar_log(venceu):
@@ -58,6 +72,7 @@ def _salvar_log(venceu):
         "run_id":        run_id,
         "model":         run_model,
         "started_at":    run_started_iso,
+        "modo":          run_modo,
         "venceu":        venceu,
         "tempo_total":   round(time.time() - env.estado["t0"], 2),
         "passos":        env.estado["passos"],
@@ -102,13 +117,16 @@ def pagina_watch():
 
 # ── Endpoints do agente (sem valid_actions) ──────────────────────────────────
 
-def _iniciar_jogada(model, system_prompt=""):
+def _iniciar_jogada(model, system_prompt="", modo=None):
     """Cria uma partida nova com metadados de log. Usado pelo /reset e pelo MCP."""
     global env, current_thought, god_message_pending, god_message_count
-    global run_id, run_model, run_started_iso, run_system_prompt
-    global historico, conversa_pendente
+    global run_id, run_model, run_started_iso, run_system_prompt, run_modo
+    global historico, conversa_pendente, acao_em_andamento
 
     model = (model or "").strip() or "desconhecido"
+    modo = (modo or "").strip().lower()
+    run_modo = modo if modo in ("livre", "turnos") else MODO_PADRAO
+
     env = Cofre()
     obs, info = env.reset()
     current_thought     = ""
@@ -123,12 +141,13 @@ def _iniciar_jogada(model, system_prompt=""):
     run_id            = f"{agora.strftime('%Y%m%d_%H%M%S')}_{modelo_limpo}"
     historico         = []
     conversa_pendente = None
-    print(f"  [log] Nova jogada: {run_id} (modelo: {model})")
+    acao_em_andamento = False
+    print(f"  [log] Nova jogada: {run_id} (modelo: {model}, modo: {run_modo})")
     return obs
 
 
-def _executar_passo(action):
-    """Executa um passo, registra o histórico e salva o log se a partida acabar."""
+def _step_e_registra(action):
+    """Executa o passo no ambiente e registra histórico/log. Chamar com lock."""
     global conversa_pendente
     obs, reward, terminated, truncated, info = env.step(action)
     entrada = {
@@ -148,6 +167,41 @@ def _executar_passo(action):
     return obs, reward, terminated, truncated
 
 
+def _executar_passo(action):
+    """Executa um passo. Retorna (obs, reward, terminated, truncated, rejeitada).
+
+    Modo livre: ações simultâneas são apenas serializadas pelo lock (o "glitch"
+    de paralelismo é permitido).
+
+    Modo turnos: UMA ação por vez. O passo executa na hora (o watch 3D começa a
+    animar), mas a resposta fica RETIDA até a ação terminar no mundo —
+    andar entre salas leva TEMPO_MOVER, o resto TEMPO_ACAO. Qualquer ação que
+    chegue nesse meio-tempo é recusada sem contar passo: sem missões paralelas.
+    """
+    global acao_em_andamento
+    if run_modo != "turnos":
+        with passo_lock:
+            obs, reward, terminated, truncated = _step_e_registra(action)
+        return obs, reward, terminated, truncated, False
+
+    with passo_lock:
+        if acao_em_andamento:
+            obs = ("Calma! Uma acao de cada vez — voce ainda esta executando "
+                   "a acao anterior. Espere o resultado dela chegar antes de "
+                   "mandar a proxima. (modo turnos: sem missoes paralelas)")
+            return obs, 0.0, False, False, True
+        acao_em_andamento = True
+    try:
+        with passo_lock:
+            obs, reward, terminated, truncated = _step_e_registra(action)
+        # Segura a resposta até a animação "chegar lá" (sem teletransporte)
+        eh_mover = action.lower().lstrip().startswith(("ir ", "go "))
+        time.sleep(TEMPO_MOVER if eh_mover else TEMPO_ACAO)
+        return obs, reward, terminated, truncated, False
+    finally:
+        acao_em_andamento = False
+
+
 @app.route('/reset', methods=['GET', 'POST', 'OPTIONS'])
 def reset():
     """Inicia partida nova. NÃO retorna valid_actions — o agente explora.
@@ -158,18 +212,21 @@ def reset():
         return '', 204
 
     model = request.args.get('model', '')
+    modo  = request.args.get('modo', '')
     system_prompt = ''
     if request.is_json:
         dados = request.json or {}
         model = model or dados.get('model', '')
+        modo  = modo or dados.get('modo', '')
         system_prompt = dados.get('system_prompt', '')
 
-    obs = _iniciar_jogada(model, system_prompt)
+    obs = _iniciar_jogada(model, system_prompt, modo)
     return jsonify({
         "obs": obs,
         "steps": 0,
         "score": 0,
         "run_id": run_id,
+        "modo": run_modo,
         "success": True
     })
 
@@ -185,13 +242,14 @@ def step():
         if not action:
             return jsonify({"success": False, "error": "Acao vazia"}), 400
 
-        obs, reward, terminated, truncated = _executar_passo(action)
+        obs, reward, terminated, truncated, rejeitada = _executar_passo(action)
 
         return jsonify({
             "obs":        obs,
             "reward":     reward,
             "terminated": terminated,
             "truncated":  truncated,
+            "rejeitada":  rejeitada,   # modo turnos: ação chegou cedo demais
             "steps":      env.estado["passos"],
             "score":      env.estado.get("score", 0),
             "success":    True
@@ -325,6 +383,15 @@ MCP_TOOLS = [
                         "qual modelo você é, pergunte ao seu tutor — o humano "
                         "que te conectou — antes de jogar. Não invente um nome."
                     )
+                },
+                "modo": {
+                    "type": "string",
+                    "enum": ["livre", "turnos"],
+                    "description": (
+                        "Modo de jogo (opcional; padrão definido pelo servidor). "
+                        "'livre': sem restrição de ritmo. 'turnos': modo "
+                        "realista — uma ação por vez, com tempo entre elas."
+                    )
                 }
             },
             "required": ["modelo"],
@@ -335,7 +402,8 @@ MCP_TOOLS = [
         "description": (
             "Executa uma ação em linguagem natural no ambiente e retorna o que "
             "aconteceu. Se uma ação não funcionar, o ambiente responde e você "
-            "pode tentar algo diferente."
+            "pode tentar algo diferente. Sempre envie também o seu pensamento — "
+            "ele aparece na visualização 3D para os humanos acompanharem."
         ),
         "inputSchema": {
             "type": "object",
@@ -343,9 +411,17 @@ MCP_TOOLS = [
                 "acao": {
                     "type": "string",
                     "description": "A ação a executar, em linguagem natural."
+                },
+                "pensamento": {
+                    "type": "string",
+                    "description": (
+                        "O que você está pensando/planejando com essa ação "
+                        "(curto, 1-2 frases). Aparece no balão de pensamento "
+                        "da visualização 3D e no log da jogada."
+                    )
                 }
             },
-            "required": ["acao"],
+            "required": ["acao", "pensamento"],
         },
     },
 ]
@@ -371,23 +447,39 @@ def _mcp_tool_iniciar(args):
             "não sabem ao certo qual modelo são, e esse nome identifica sua "
             "jogada no ranking e na página de análise."
         )
-    obs = _iniciar_jogada(modelo, system_prompt="(jogando via MCP)")
+    obs = _iniciar_jogada(modelo, system_prompt="(jogando via MCP)",
+                          modo=args.get("modo"))
+    extra = ""
+    if run_modo == "turnos":
+        extra = (" Modo turnos: uma ação por vez — o resultado só chega quando "
+                 "a ação termina de verdade (andar leva tempo; sem "
+                 "teletransporte). Ações enviadas em paralelo são recusadas.")
     return (f"{obs}\n\n"
-            f"Partida iniciada (id: {run_id}). "
-            f"Use a tool executar_acao para interagir com o ambiente.")
+            f"Partida iniciada (id: {run_id}, modo: {run_modo}). "
+            f"Use a tool executar_acao para interagir com o ambiente.{extra}")
 
 
 def _mcp_tool_acao(args):
-    acao = (args.get("acao") or "").strip()
+    global current_thought
+    acao       = (args.get("acao") or "").strip()
+    pensamento = (args.get("pensamento") or "").strip()
     if not acao:
         return "Ação vazia. Informe uma ação em linguagem natural."
+    if not pensamento:
+        return ("Ação NÃO executada: faltou o parâmetro 'pensamento'. "
+                "Diga em 1-2 frases o que você está pensando/planejando com "
+                "essa ação — isso aparece no balão de pensamento da "
+                "visualização 3D e no log, e ajuda os humanos a te acompanhar.")
     if env is None:
         return "Nenhuma partida em andamento. Use a tool iniciar_jogo primeiro."
     if env.estado["cofre_aberto"] or env.estado["passos"] >= env.max_passos:
         return ("A partida anterior já terminou. "
                 "Use a tool iniciar_jogo para jogar de novo.")
 
-    obs, reward, terminated, truncated = _executar_passo(acao)
+    current_thought = pensamento   # alimenta o balão do watch e o histórico
+    obs, reward, terminated, truncated, rejeitada = _executar_passo(acao)
+    if rejeitada:
+        return f"{obs}\n\n(A ação NÃO foi executada e não contou passo.)"
     rodape = f"[passo {env.estado['passos']} | score {env.estado['score']:+.0f}]"
     if terminated:
         rodape += (f"\n🏆 VITÓRIA! Cofre aberto em {env.estado['passos']} passos "

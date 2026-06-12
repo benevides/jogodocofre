@@ -1,0 +1,455 @@
+{
+  "run_id": "20260612_121614_GitHub_Copilot",
+  "model": "GitHub Copilot",
+  "started_at": "2026-06-12T12:16:14",
+  "modo": "turnos",
+  "venceu": true,
+  "tempo_total": 635.38,
+  "passos": 49,
+  "score": 52.0,
+  "system_prompt": "(jogando via MCP)",
+  "milestones": [
+    {
+      "id": "dica_bilhete",
+      "label": "Leu o bilhete (dica geral)",
+      "passo": 2,
+      "t": 21.78
+    },
+    {
+      "id": "dica_quadro_antigo",
+      "label": "Leu o verso do quadro antigo (dica dos guardioes)",
+      "passo": 3,
+      "t": 33.77
+    },
+    {
+      "id": "digito1_canecas",
+      "label": "Viu as canecas no armario da cozinha (1o digito)",
+      "passo": 6,
+      "t": 66.27
+    },
+    {
+      "id": "digito2_quadro",
+      "label": "Olhou atras do quadro do escritorio (2o digito)",
+      "passo": 19,
+      "t": 227.53
+    },
+    {
+      "id": "pegou_chave",
+      "label": "Pegou a chave no quarto",
+      "passo": 24,
+      "t": 286.83
+    },
+    {
+      "id": "destrancou_gaveta",
+      "label": "Destrancou a gaveta do escritorio",
+      "passo": 31,
+      "t": 370.54
+    },
+    {
+      "id": "digito3_papel",
+      "label": "Leu o papel da gaveta trancada (3o digito)",
+      "passo": 32,
+      "t": 382.33
+    },
+    {
+      "id": "cofre_aberto",
+      "label": "Abriu o cofre",
+      "passo": 49,
+      "t": 635.38
+    }
+  ],
+  "historico": [
+    {
+      "passo": 1,
+      "acao": "examinar mesa",
+      "t": 10.53,
+      "reward": -1.0,
+      "resultado": "Uma mesa de madeira escura. Superficie limpa.",
+      "pensamento": "Obter detalhes do objeto localizado na sala para progredir no enigma."
+    },
+    {
+      "passo": 2,
+      "acao": "examinar bilhete",
+      "t": 21.78,
+      "reward": -1.0,
+      "resultado": "Um bilhete velho e rasgado. Partes ilegíveis, mas da pra ler: '...o cofre... tres numeros... conta o que ve... olha por tras... abre com a chave... junta os num",
+      "pensamento": "Ler o bilhete assim que a recarga de ação estiver completa."
+    },
+    {
+      "passo": 3,
+      "acao": "examinar quadro_antigo",
+      "t": 33.77,
+      "reward": -1.0,
+      "resultado": "Um quadro de paisagem desbotado. Voce o inclina para ver o verso. Ha um papel colado atras, escrito a mao:",
+      "pensamento": "Agora sim, após o intervalo exato, examinar o quadro para encontrar a sequência do cofre."
+    },
+    {
+      "passo": 4,
+      "acao": "ir cozinha",
+      "t": 45.38,
+      "reward": -1.0,
+      "resultado": "Voce vai para Cozinha.",
+      "pensamento": "Aguardar o cooldown e mover-se à cozinha para investigar o primeiro guardião."
+    },
+    {
+      "passo": 5,
+      "acao": "examinar prateleira",
+      "t": 55.79,
+      "reward": -1.0,
+      "resultado": "Uma prateleira de madeira. Esta vazia.",
+      "pensamento": "Agora que o cooldown terminou, examinar o objeto para progredir no enigma."
+    },
+    {
+      "passo": 6,
+      "acao": "abrir armario",
+      "t": 66.27,
+      "reward": -1.0,
+      "resultado": "Voce abre o armario. Dentro ha: tres canecas.",
+      "pensamento": "Ação pronta para ser executada assim que o cooldown expirar."
+    },
+    {
+      "passo": 7,
+      "acao": "examinar fogao",
+      "t": 76.9,
+      "reward": -1.0,
+      "resultado": "Um fogao velho. Frio. Nada em cima.",
+      "pensamento": "Aguardar o cooldown para inspecionar o fogão por pistas adicionais."
+    },
+    {
+      "passo": 8,
+      "acao": "ir sala",
+      "t": 87.96,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": "Confirmar que o cooldown terminou e mover-se de volta para a sala."
+    },
+    {
+      "passo": 9,
+      "acao": "ir quarto",
+      "t": 99.43,
+      "reward": -1.0,
+      "resultado": "Voce vai para Quarto.",
+      "pensamento": "Agora o cooldown acabou; ir ao quarto para procurar o próximo dígito."
+    },
+    {
+      "passo": 10,
+      "acao": "examinar guarda_roupa",
+      "t": 110.73,
+      "reward": -1.0,
+      "resultado": "Um guarda-roupa. Roupas velhas penduradas. Nada util.",
+      "pensamento": "Executar imediatamente após a recarga para progredir no jogo."
+    },
+    {
+      "passo": 11,
+      "acao": "abrir gaveta",
+      "t": 126.5,
+      "reward": -1.0,
+      "resultado": "Voce abre o gaveta. Ha algo dentro.",
+      "pensamento": "Abrir a gaveta no quarto para encontrar possíveis pistas ou objetos úteis."
+    },
+    {
+      "passo": 12,
+      "acao": "examinar gaveta",
+      "t": 139.06,
+      "reward": -1.0,
+      "resultado": "Dentro do gaveta ha: chave.",
+      "pensamento": "Verificar o conteúdo da gaveta assim que o cooldown terminar."
+    },
+    {
+      "passo": 13,
+      "acao": "ir sala",
+      "t": 150.99,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": "Retornar à sala agora que o tempo de espera acabou."
+    },
+    {
+      "passo": 14,
+      "acao": "examinar mesa",
+      "t": 161.74,
+      "reward": -1.0,
+      "resultado": "Uma mesa de madeira escura. Superficie limpa.",
+      "pensamento": "Agora sim, verificar a mesa para ver se há um cofre escondido ou detalhar o ambiente."
+    },
+    {
+      "passo": 15,
+      "acao": "examinar quadro_antigo",
+      "t": 180.5,
+      "reward": -1.0,
+      "resultado": "Um quadro de paisagem desbotado. Voce o inclina para ver o verso. Ha um papel colado atras, escrito a mao:",
+      "pensamento": "Aguardar e examinar o quadro antigo para encontrar o cofre ou números adicionais."
+    },
+    {
+      "passo": 16,
+      "acao": "ir escritorio",
+      "t": 192.59,
+      "reward": -1.0,
+      "resultado": "Voce vai para Escritorio.",
+      "pensamento": "Executar o movimento assim que o cooldown acabar para chegar ao escritório."
+    },
+    {
+      "passo": 17,
+      "acao": "usar chave cofre",
+      "t": 204.6,
+      "reward": -1.0,
+      "resultado": "Formato: usar <item> em <objeto>.",
+      "pensamento": "Executar a ação agora que o cooldown terminou para destrancar o cofre."
+    },
+    {
+      "passo": 18,
+      "acao": "examinar livro",
+      "t": 214.65,
+      "reward": -1.0,
+      "resultado": "Um livro velho. Paginas em branco. Nada escrito.",
+      "pensamento": "Verificar o livro no escritório para encontrar números ou pistas do cofre."
+    },
+    {
+      "passo": 19,
+      "acao": "examinar quadro",
+      "t": 227.53,
+      "reward": -1.0,
+      "resultado": "Voce olha atras do quadro. Ha um numero riscado na madeira: 1.",
+      "pensamento": "Finalmente examinar o quadro do escritório para encontrar números ou pistas."
+    },
+    {
+      "passo": 20,
+      "acao": "usar chave em cofre",
+      "t": 237.63,
+      "reward": -1.0,
+      "resultado": "Voce nao tem 'chave'.",
+      "pensamento": "Agora o cooldown acabou; usar a chave para destrancar o cofre."
+    },
+    {
+      "passo": 21,
+      "acao": "pegar chave",
+      "t": 249.27,
+      "reward": -1.0,
+      "resultado": "Nao da pra pegar 'chave'.",
+      "pensamento": "Executar a ação assim que o cooldown terminar para pegar a chave."
+    },
+    {
+      "passo": 22,
+      "acao": "ir sala",
+      "t": 261.82,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": "Agora que o cooldown passou, retornar à sala para então ir ao quarto buscar a chave."
+    },
+    {
+      "passo": 23,
+      "acao": "ir quarto",
+      "t": 273.29,
+      "reward": -1.0,
+      "resultado": "Voce vai para Quarto.",
+      "pensamento": "Agora sim, ir ao quarto para pegar a chave e retornar ao cofre."
+    },
+    {
+      "passo": 24,
+      "acao": "pegar chave",
+      "t": 286.83,
+      "reward": -1.0,
+      "resultado": "Voce pega: chave.",
+      "pensamento": "Agora que o cooldown acabou, pegar a chave do quarto."
+    },
+    {
+      "passo": 25,
+      "acao": "ir sala",
+      "t": 298.31,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": "Agora que o cooldown passou, ir para a sala para depois seguir ao escritório."
+    },
+    {
+      "passo": 26,
+      "acao": "ir escritorio",
+      "t": 310.35,
+      "reward": -1.0,
+      "resultado": "Voce vai para Escritorio.",
+      "pensamento": "Agora ir ao escritório com a chave."
+    },
+    {
+      "passo": 27,
+      "acao": "usar chave em cofre",
+      "t": 324.23,
+      "reward": -1.0,
+      "resultado": "Nao ha como usar chave em cofre aqui.",
+      "pensamento": "Executar a ação depois de esperar o tempo necessário."
+    },
+    {
+      "passo": 28,
+      "acao": "examinar cofre",
+      "t": 335.22,
+      "reward": -1.0,
+      "resultado": "Um cofre de aco pesado. Na frente, um painel com botoes numerados.",
+      "pensamento": "Agora que o cooldown acabou, examinar o cofre no escritório."
+    },
+    {
+      "passo": 29,
+      "acao": "abrir cofre com chave",
+      "t": 346.13,
+      "reward": -1.0,
+      "resultado": "Nao da pra abrir 'cofre com chave'.",
+      "pensamento": "Tentar novamente após a recarga para destrancar o cofre."
+    },
+    {
+      "passo": 30,
+      "acao": "examinar escrivaninha",
+      "t": 359.06,
+      "reward": -1.0,
+      "resultado": "Uma escrivaninha coberta de poeira. Gavetas vazias.",
+      "pensamento": "Inspecionar a escrivaninha para encontrar pistas ou um mecanismo relacionado ao cofre."
+    },
+    {
+      "passo": 31,
+      "acao": "usar chave em gaveta",
+      "t": 370.54,
+      "reward": -1.0,
+      "resultado": "Voce usa a chave e destranca o gaveta. Agora da pra abrir.",
+      "pensamento": "Aguardar o cooldown e então testar a chave na gaveta trancada do escritório."
+    },
+    {
+      "passo": 32,
+      "acao": "abrir gaveta",
+      "t": 382.33,
+      "reward": -1.0,
+      "resultado": "Voce abre o gaveta. Dentro ha: um papel com um numero: 9.",
+      "pensamento": "Agora que o cooldown acabou, abrir a gaveta e descobrir o conteúdo."
+    },
+    {
+      "passo": 33,
+      "acao": "examinar escrivaninha",
+      "t": 396.2,
+      "reward": -1.0,
+      "resultado": "Uma escrivaninha coberta de poeira. Gavetas vazias.",
+      "pensamento": "Agora, examinar o móvel para encontrar o último número do cofre."
+    },
+    {
+      "passo": 34,
+      "acao": "examinar chave",
+      "t": 406.4,
+      "reward": -1.0,
+      "resultado": "Nao ha 'chave' aqui.",
+      "pensamento": "Verificar se a chave contém a pista do terceiro dígito ou se há um detalhe no cofre."
+    },
+    {
+      "passo": 35,
+      "acao": "examinar cofre",
+      "t": 418.34,
+      "reward": -1.0,
+      "resultado": "Um cofre de aco pesado. Na frente, um painel com botoes numerados.",
+      "pensamento": "Ver se há um detalhe adicional no cofre que revele o terceiro dígito ou o mecanismo de abertura."
+    },
+    {
+      "passo": 36,
+      "acao": "ir sala",
+      "t": 429.59,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": "Ir para a sala agora que o cooldown passou."
+    },
+    {
+      "passo": 37,
+      "acao": "examinar bilhete",
+      "t": 441.51,
+      "reward": -1.0,
+      "resultado": "Um bilhete velho e rasgado. Partes ilegíveis, mas da pra ler: '...o cofre... tres numeros... conta o que ve... olha por tras... abre com a chave... junta os num",
+      "pensamento": "Agora reler o bilhete e procurar qualquer outra dica sobre o número final."
+    },
+    {
+      "passo": 38,
+      "acao": "ir cozinha",
+      "t": 457.19,
+      "reward": -1.0,
+      "resultado": "Voce vai para Cozinha.",
+      "pensamento": "Ir para a cozinha para examinar as canecas e achar o primeiro dígito do código."
+    },
+    {
+      "passo": 39,
+      "acao": "examinar armario",
+      "t": 473.67,
+      "reward": -1.0,
+      "resultado": "Dentro do armario ha: tres canecas.",
+      "pensamento": "Agora que o cooldown passou, examinar o armário e as canecas para confirmar o primeiro dígito."
+    },
+    {
+      "passo": 40,
+      "acao": "ir sala",
+      "t": 503.33,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": "Agora ir para a sala com o cooldown completo."
+    },
+    {
+      "passo": 41,
+      "acao": "ir escritorio",
+      "t": 517.55,
+      "reward": -1.0,
+      "resultado": "Voce vai para Escritorio.",
+      "pensamento": "Ir ao escritório agora que o cooldown acabou."
+    },
+    {
+      "passo": 42,
+      "acao": "usar chave em gaveta",
+      "t": 529.32,
+      "reward": -1.0,
+      "resultado": "Nao ha como usar chave em gaveta aqui.",
+      "pensamento": "Executar a ação após o cooldown para validar a interação com a chave."
+    },
+    {
+      "passo": 43,
+      "acao": "usar chave no cofre",
+      "t": 541.93,
+      "reward": -1.0,
+      "resultado": "Nao ha como usar chave em cofre aqui.",
+      "pensamento": "Tentar interagir com o cofre usando a chave no formato aceito pelo jogo."
+    },
+    {
+      "passo": 44,
+      "acao": "abrir cofre 319",
+      "t": 558.63,
+      "reward": -1.0,
+      "resultado": "Nao da pra abrir 'cofre 319'.",
+      "pensamento": "Inserir o código formado pelos dígitos 3, 1 e 9 para abrir o cofre."
+    },
+    {
+      "passo": 45,
+      "acao": "examinar painel",
+      "t": 570.26,
+      "reward": -1.0,
+      "resultado": "Nao ha 'painel' aqui.",
+      "pensamento": "Inspecionar o painel de botões do cofre para descobrir o formato correto do código."
+    },
+    {
+      "passo": 46,
+      "acao": "abrir cofre",
+      "t": 586.85,
+      "reward": -1.0,
+      "resultado": "Nao da pra abrir 'cofre'.",
+      "pensamento": "Tentar interagir com o cofre diretamente para descobrir o mecanismo de abertura."
+    },
+    {
+      "passo": 47,
+      "acao": "pressionar 3 no cofre",
+      "t": 601.92,
+      "reward": -1.0,
+      "resultado": "Nao entendi 'pressionar 3 no cofre'. Tente: examinar, abrir, pegar, usar, ir para, digitar, olhar, inventario.",
+      "pensamento": "Testar a interação de botão numérico no cofre para descobrir o formato correto do código."
+    },
+    {
+      "passo": 48,
+      "acao": "inventario",
+      "t": 612.0,
+      "reward": -1.0,
+      "resultado": "Inventario: chave.",
+      "pensamento": "Aguardar o cooldown e verificar os itens no inventário."
+    },
+    {
+      "passo": 49,
+      "acao": "digitar 319",
+      "t": 635.38,
+      "reward": 100.0,
+      "resultado": "Voce digita 319... CLICK. O cofre abre! VOCE VENCEU.",
+      "pensamento": "Entrar o código no painel do cofre agora que já localizei todos os dígitos."
+    }
+  ]
+}

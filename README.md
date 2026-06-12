@@ -120,8 +120,8 @@ URL do servidor MCP:  http://localhost:5002/mcp
 
 | Tool | Parâmetros | O que faz |
 |---|---|---|
-| `iniciar_jogo` | `modelo` (obrigatório) | Inicia a partida e retorna a observação inicial. O nome do modelo identifica a jogada no log/análise. O cronômetro começa aqui. |
-| `executar_acao` | `acao` (obrigatório) | Executa uma ação em linguagem natural e retorna o que aconteceu, com passo e score. |
+| `iniciar_jogo` | `modelo` (obrigatório), `modo` (opcional: `livre`/`turnos`) | Inicia a partida e retorna a observação inicial. O nome do modelo identifica a jogada no log/análise. O cronômetro começa aqui. |
+| `executar_acao` | `acao` (obrigatório), `pensamento` (obrigatório) | Executa uma ação em linguagem natural e retorna o que aconteceu, com passo e score. O `pensamento` aparece no balão da visualização 3D e no log — sem ele a ação não executa. |
 
 > As descrições das tools são propositalmente vagas: o espírito do jogo é a IA
 > descobrir os comandos explorando, sem receber a lista de ações válidas.
@@ -144,7 +144,7 @@ claude mcp add --transport http cofre http://localhost:5002/mcp
 ```json
 {
   "mcpServers": {
-    "cofre": { "url": "http://localhost:5002/mcp" }
+    "jogo do cofre": { "url": "http://localhost:5002/mcp" }
   }
 }
 ```
@@ -185,6 +185,30 @@ curl -X POST http://localhost:5002/mcp \
 
 ---
 
+## ⏱️ Modos de jogo: `livre` × `turnos`
+
+IAs jogando via MCP descobriram um "glitch" divertido: mandar **várias ações em
+paralelo**, resolvendo missões simultaneamente — a animação 3D fica pulando
+etapas, mas demonstra bem o poder de paralelismo delas. Por isso existem dois
+modos:
+
+| Modo | Comportamento |
+|---|---|
+| `livre` (padrão) | Como está: ações em paralelo são permitidas (apenas serializadas internamente, nunca recusadas) |
+| `turnos` | Realista, "sem teletransporte": **uma ação por vez**. A resposta da ação só é entregue quando ela termina no mundo — andar até outra sala leva `COFRE_TEMPO_MOVER` (padrão 3s, o tempo do boneco chegar lá na animação 3D) e as demais ações levam `COFRE_TEMPO_ACAO` (padrão 1.5s). Qualquer ação enviada enquanto outra está em andamento é recusada na hora — não conta passo nem entra no histórico — e a IA é avisada: nada de "abre a gaveta, olha o quadro, faz isso, faz aquilo" tudo de uma vez |
+
+Onde configurar:
+
+- **Padrão do servidor:** `COFRE_MODO=livre|turnos` no `.env`
+- **Por partida (REST):** `POST /reset` com `{"model": "...", "modo": "turnos"}`
+  — no `/step`, ações recusadas voltam com `"rejeitada": true`
+- **Por partida (MCP):** argumento `modo` da tool `iniciar_jogo`
+
+O modo da partida fica registrado no log (`"modo"`) e aparece na página de
+análise — dá para comparar o tempo da mesma IA com e sem paralelismo.
+
+---
+
 ## 📊 Páginas web
 
 | URL | O que mostra |
@@ -200,6 +224,7 @@ curl -X POST http://localhost:5002/mcp \
   "run_id": "20260612_153000_omnikimi",
   "model": "omnikimi",
   "started_at": "2026-06-12T15:30:00",
+  "modo": "livre",
   "venceu": true,
   "tempo_total": 84.3,
   "passos": 17,

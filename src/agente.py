@@ -174,8 +174,10 @@ def reset_cofre():
 
 def step_cofre(action):
     try:
+        # timeout folgado: no modo turnos a resposta fica retida até a ação
+        # terminar no mundo (andar entre salas leva o tempo da animação)
         r = requests.post(f"{COFRE_SERVER}/step",
-                          json={"action": action}, timeout=5)
+                          json={"action": action}, timeout=30)
         r.raise_for_status()
         return r.json()
     except Exception as e:

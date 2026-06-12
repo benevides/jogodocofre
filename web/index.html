@@ -71,9 +71,16 @@
 </div>
 
 <footer>
-  Para jogar: rode <code>python agente.py</code> em outro terminal.<br>
+  Para jogar: rode <code>python src/agente.py</code> em outro terminal,<br>
+  ou conecte qualquer IA via MCP em <code id="mcp-url">http://localhost:5002/mcp</code>
+  (veja o README).<br>
   Os logs de cada partida ficam em <code>logs/*.json</code>.
 </footer>
 
+<script>
+  // Mostra a URL real do MCP quando a página é servida pelo server.py
+  if (location.protocol.startsWith("http"))
+    document.getElementById("mcp-url").textContent = location.origin + "/mcp";
+</script>
 </body>
 </html>

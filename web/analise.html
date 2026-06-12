@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -124,7 +124,9 @@
 </div>
 
 <script>
-const SERVER = "http://localhost:5002";
+// Usa a origem da página quando servido pelo server.py; fallback p/ file://
+const SERVER = location.protocol.startsWith("http") ? location.origin
+                                                     : "http://localhost:5002";
 
 // Ordem canônica das milestones (eixo Y, de baixo para cima)
 const ORDEM = [
@@ -186,7 +188,7 @@ async function carregar() {
     if (selecionadas.size === 0 && runs.length > 0) toggle(runs[0].run_id);
     render();
   } catch (e) {
-    st.textContent = "servidor offline — rode: python server.py";
+    st.textContent = "servidor offline — rode: python src/server.py";
     st.classList.add("offline");
     runs = [];
     render();
@@ -241,7 +243,7 @@ function renderResumo(lista) {
 
 function renderLista(lista) {
   if (!lista.length) {
-    $("lista").innerHTML = '<div class="vazio">Nenhuma jogada encontrada.<br>Rode o agente (python agente.py) para gerar logs!</div>';
+    $("lista").innerHTML = '<div class="vazio">Nenhuma jogada encontrada.<br>Rode o agente (python src/agente.py) para gerar logs!</div>';
     return;
   }
   const linhas = lista.map(r => {

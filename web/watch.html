@@ -130,7 +130,9 @@
 <script>
 (function(){
 
-const SERVER   = 'http://localhost:5002';
+// Usa a origem da página quando servido pelo server.py; fallback p/ file://
+const SERVER   = location.protocol.startsWith('http') ? location.origin
+                                                       : 'http://localhost:5002';
 const ROOM_POS = {sala:[0,0], cozinha:[-9.5,0], quarto:[0,-9.5], escritorio:[9.5,0]};
 
 // ── RENDERER ────────────────────────────────────────────────────────────────
@@ -381,7 +383,7 @@ async function poll(){
       if(gameRunning){ gameRunning=false; banner.className=''; banner.textContent='⏳ aguardando a IA começar...'; }
     }
   } catch(e){
-    document.getElementById('status-banner').textContent='❌ sem conexão com o servidor (localhost:5002)';
+    document.getElementById('status-banner').textContent='❌ sem conexão com o servidor ('+SERVER+')';
   }
 }
 setInterval(poll, 500);

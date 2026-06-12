@@ -1,0 +1,254 @@
+{
+  "run_id": "20260612_113633_Gemini_3.1_Pro_High_",
+  "model": "Gemini 3.1 Pro (High)",
+  "started_at": "2026-06-12T11:36:33",
+  "venceu": true,
+  "tempo_total": 100.97,
+  "passos": 24,
+  "score": 77.0,
+  "system_prompt": "(jogando via MCP)",
+  "milestones": [
+    {
+      "id": "dica_bilhete",
+      "label": "Leu o bilhete (dica geral)",
+      "passo": 2,
+      "t": 16.59
+    },
+    {
+      "id": "dica_quadro_antigo",
+      "label": "Leu o verso do quadro antigo (dica dos guardioes)",
+      "passo": 3,
+      "t": 21.39
+    },
+    {
+      "id": "digito1_canecas",
+      "label": "Viu as canecas no armario da cozinha (1o digito)",
+      "passo": 5,
+      "t": 31.57
+    },
+    {
+      "id": "pegou_chave",
+      "label": "Pegou a chave no quarto",
+      "passo": 14,
+      "t": 59.96
+    },
+    {
+      "id": "digito2_quadro",
+      "label": "Olhou atras do quadro do escritorio (2o digito)",
+      "passo": 18,
+      "t": 68.37
+    },
+    {
+      "id": "destrancou_gaveta",
+      "label": "Destrancou a gaveta do escritorio",
+      "passo": 22,
+      "t": 85.57
+    },
+    {
+      "id": "digito3_papel",
+      "label": "Leu o papel da gaveta trancada (3o digito)",
+      "passo": 23,
+      "t": 91.9
+    },
+    {
+      "id": "cofre_aberto",
+      "label": "Abriu o cofre",
+      "passo": 24,
+      "t": 100.97
+    }
+  ],
+  "historico": [
+    {
+      "passo": 1,
+      "acao": "ler bilhete",
+      "t": 11.9,
+      "reward": -1.0,
+      "resultado": "Nao entendi 'ler bilhete'. Tente: examinar, abrir, pegar, usar, ir para, digitar, olhar, inventario.",
+      "pensamento": ""
+    },
+    {
+      "passo": 2,
+      "acao": "examinar bilhete",
+      "t": 16.59,
+      "reward": -1.0,
+      "resultado": "Um bilhete velho e rasgado. Partes ilegíveis, mas da pra ler: '...o cofre... tres numeros... conta o que ve... olha por tras... abre com a chave... junta os num",
+      "pensamento": ""
+    },
+    {
+      "passo": 3,
+      "acao": "examinar quadro_antigo",
+      "t": 21.39,
+      "reward": -1.0,
+      "resultado": "Um quadro de paisagem desbotado. Voce o inclina para ver o verso. Ha um papel colado atras, escrito a mao:",
+      "pensamento": ""
+    },
+    {
+      "passo": 4,
+      "acao": "ir para cozinha",
+      "t": 27.05,
+      "reward": -1.0,
+      "resultado": "Voce vai para Cozinha.",
+      "pensamento": ""
+    },
+    {
+      "passo": 5,
+      "acao": "abrir armario",
+      "t": 31.57,
+      "reward": -1.0,
+      "resultado": "Voce abre o armario. Dentro ha: tres canecas.",
+      "pensamento": ""
+    },
+    {
+      "passo": 6,
+      "acao": "examinar prateleira",
+      "t": 36.56,
+      "reward": -1.0,
+      "resultado": "Uma prateleira de madeira. Esta vazia.",
+      "pensamento": ""
+    },
+    {
+      "passo": 7,
+      "acao": "examinar fogao",
+      "t": 36.57,
+      "reward": -1.0,
+      "resultado": "Um fogao velho. Frio. Nada em cima.",
+      "pensamento": ""
+    },
+    {
+      "passo": 8,
+      "acao": "ir para sala",
+      "t": 43.11,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": ""
+    },
+    {
+      "passo": 9,
+      "acao": "ir para quarto",
+      "t": 43.12,
+      "reward": -1.0,
+      "resultado": "Voce vai para Quarto.",
+      "pensamento": ""
+    },
+    {
+      "passo": 10,
+      "acao": "examinar cama",
+      "t": 48.52,
+      "reward": -1.0,
+      "resultado": "Uma cama arrumada. Voce verifica embaixo: nada.",
+      "pensamento": ""
+    },
+    {
+      "passo": 11,
+      "acao": "examinar guarda_roupa",
+      "t": 48.53,
+      "reward": -1.0,
+      "resultado": "Um guarda-roupa. Roupas velhas penduradas. Nada util.",
+      "pensamento": ""
+    },
+    {
+      "passo": 12,
+      "acao": "abrir gaveta",
+      "t": 48.54,
+      "reward": -1.0,
+      "resultado": "Voce abre o gaveta. Ha algo dentro.",
+      "pensamento": ""
+    },
+    {
+      "passo": 13,
+      "acao": "examinar gaveta",
+      "t": 53.4,
+      "reward": -1.0,
+      "resultado": "Dentro do gaveta ha: chave.",
+      "pensamento": ""
+    },
+    {
+      "passo": 14,
+      "acao": "pegar chave",
+      "t": 59.96,
+      "reward": -1.0,
+      "resultado": "Voce pega: chave.",
+      "pensamento": ""
+    },
+    {
+      "passo": 15,
+      "acao": "ir para sala",
+      "t": 59.97,
+      "reward": -1.0,
+      "resultado": "Voce vai para Sala de Estar.",
+      "pensamento": ""
+    },
+    {
+      "passo": 16,
+      "acao": "ir para escritorio",
+      "t": 59.98,
+      "reward": -1.0,
+      "resultado": "Voce vai para Escritorio.",
+      "pensamento": ""
+    },
+    {
+      "passo": 17,
+      "acao": "examinar cofre",
+      "t": 68.36,
+      "reward": -1.0,
+      "resultado": "Um cofre de aco pesado. Na frente, um painel com botoes numerados.",
+      "pensamento": ""
+    },
+    {
+      "passo": 18,
+      "acao": "examinar quadro",
+      "t": 68.37,
+      "reward": -1.0,
+      "resultado": "Voce olha atras do quadro. Ha um numero riscado na madeira: 1.",
+      "pensamento": ""
+    },
+    {
+      "passo": 19,
+      "acao": "examinar livro",
+      "t": 68.38,
+      "reward": -1.0,
+      "resultado": "Um livro velho. Paginas em branco. Nada escrito.",
+      "pensamento": ""
+    },
+    {
+      "passo": 20,
+      "acao": "abrir gaveta",
+      "t": 75.29,
+      "reward": -1.0,
+      "resultado": "O gaveta esta trancado. Precisa de alguma coisa para abrir.",
+      "pensamento": ""
+    },
+    {
+      "passo": 21,
+      "acao": "usar chave",
+      "t": 80.01,
+      "reward": -1.0,
+      "resultado": "Formato: usar <item> em <objeto>.",
+      "pensamento": ""
+    },
+    {
+      "passo": 22,
+      "acao": "usar chave em gaveta",
+      "t": 85.57,
+      "reward": -1.0,
+      "resultado": "Voce usa a chave e destranca o gaveta. Agora da pra abrir.",
+      "pensamento": ""
+    },
+    {
+      "passo": 23,
+      "acao": "abrir gaveta",
+      "t": 91.9,
+      "reward": -1.0,
+      "resultado": "Voce abre o gaveta. Dentro ha: um papel com um numero: 9.",
+      "pensamento": ""
+    },
+    {
+      "passo": 24,
+      "acao": "digitar 319 no cofre",
+      "t": 100.97,
+      "reward": 100.0,
+      "resultado": "Voce digita 319... CLICK. O cofre abre! VOCE VENCEU.",
+      "pensamento": ""
+    }
+  ]
+}

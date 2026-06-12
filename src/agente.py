@@ -14,9 +14,9 @@ Configuração via .env:
     COFRE_SERVER = URL do server.py (default: http://localhost:5002)
     VERBOSE      = true/false
 
-Uso:
-    python server.py           (em terminal separado)
-    python agente.py
+Uso (a partir da raiz do projeto):
+    python src/server.py       (em terminal separado)
+    python src/agente.py
 """
 
 import os
@@ -26,7 +26,8 @@ import json
 import time
 from dotenv import load_dotenv
 
-load_dotenv()
+# .env fica na raiz do projeto (uma pasta acima de src/)
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
 API_URL      = os.getenv("API_URL",      "http://localhost:8000/v1/chat/completions")
 API_KEY      = os.getenv("API_KEY",      "").strip()
@@ -221,7 +222,7 @@ def main():
     res = reset_cofre()
     if not res.get("success"):
         print("✗ Não foi possível conectar ao servidor.")
-        print(f"  Certifique-se de que server.py está rodando em {COFRE_SERVER}")
+        print(f"  Certifique-se de que src/server.py está rodando em {COFRE_SERVER}")
         return
 
     obs      = res["obs"]

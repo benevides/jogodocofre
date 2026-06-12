@@ -120,6 +120,11 @@ def pagina_configurar():
     return send_from_directory(WEB_DIR, 'configurar.html')
 
 
+@app.route('/favicon.svg')
+def favicon():
+    return send_from_directory(WEB_DIR, 'favicon.svg')
+
+
 # ── Endpoints do agente (sem valid_actions) ──────────────────────────────────
 
 def _iniciar_jogada(model, system_prompt="", modo=None):

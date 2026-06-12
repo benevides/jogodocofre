@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>O Cofre — Análise de Jogadas</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -188,6 +189,10 @@
   .vazio { color: var(--suave); padding: 30px; text-align: center; font-size: 0.88rem; }
 
   #grafico { width: 100%; height: auto; display: block; }
+  #grafico polyline { transition: stroke-width 0.15s, opacity 0.15s; cursor: crosshair; }
+  #grafico polyline:hover { stroke-width: 4; opacity: 1; }
+  #grafico circle { transition: r 0.15s; cursor: pointer; }
+  #grafico circle:hover { r: 7.5; }
   .legenda { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 0.8rem; }
   .legenda span { display: flex; align-items: center; gap: 6px; background: var(--bg); padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border); }
 
@@ -367,8 +372,8 @@ const NOMES = {
   digito3_papel:      "Papel da gaveta (3º díg.)",
   cofre_aberto:       "🏆 Cofre aberto",
 };
-const CORES = ["#7da67d", "#c4a93d", "#9ab89a", "#b8942e",
-               "#d4c76a", "#8a9a84", "#a8b88a", "#c9c9a8"];
+const CORES = ["#2d6a4f", "#f4d03f", "#1b4332", "#d4a017",
+               "#40916c", "#f7dc6f", "#52b788", "#b7950b"];
 
 let runs = [];
 let selecionadas = new Map();   // run_id -> cor
@@ -545,15 +550,19 @@ function renderGrafico(lista) {
     const pts = ms.map(m => [x(m.t), y(ordemY.indexOf(m.id)), m]);
     if (pts.length > 1)
       s += `<polyline points="${pts.map(p => p[0] + "," + p[1]).join(" ")}"
-             fill="none" stroke="${cor}" stroke-width="2" opacity="0.85"/>`;
+             fill="none" stroke="${cor}" stroke-width="2.5" opacity="0.9">
+             <title>${r.model} — ${r.venceu ? "🏆 vitória" : "✖ não resolveu"} · ${fmtT(r.tempo_total)} · ${r.passos} passos</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"></polyline>`;
     // marca de fim da jogada
     const fimX = x(r.tempo_total);
     s += `<line x1="${fimX}" y1="${MT}" x2="${fimX}" y2="${MT + alt}" stroke="${cor}"
            stroke-dasharray="4 4" opacity="0.45">
-           <title>${r.model} — fim da jogada: ${fmtT(r.tempo_total)} (${r.venceu ? "vitória" : "não resolveu"})</title></line>`;
+           <title>${r.model} — fim da jogada: ${fmtT(r.tempo_total)} (${r.venceu ? "vitória" : "não resolveu"})</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"></line>`;
     for (const [px, py, m] of pts)
-      s += `<circle cx="${px}" cy="${py}" r="5.5" fill="${cor}" stroke="#0d1117" stroke-width="1.5">
-             <title>${r.model}\n${m.label}\nt = ${fmtT(m.t)} (passo ${m.passo})</title></circle>`;
+      s += `<circle cx="${px}" cy="${py}" r="6" fill="${cor}" stroke="#0d1117" stroke-width="1.5">
+             <title>${r.model}\n🎯 ${m.label}\n⏱ ${fmtT(m.t)} · passo ${m.passo}</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"></circle>`;
   }
   svg.innerHTML = s;
 

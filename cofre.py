@@ -17,10 +17,24 @@ API (mesmo formato do V1, Gymnasium-style):
 """
 
 from dataclasses import dataclass, field
+import time
 
 
 COMANDOS = ("ir para <sala> | olhar | examinar <obj> | abrir <obj> | "
             "pegar <obj> | usar <obj> em <obj> | digitar <numero> | inventario")
+
+# Milestones que ajudam a resolver o enigma. Registradas com tempo e passo
+# na primeira vez que o agente realiza cada descoberta.
+MILESTONES = {
+    "dica_bilhete":       "Leu o bilhete (dica geral)",
+    "dica_quadro_antigo": "Leu o verso do quadro antigo (dica dos guardioes)",
+    "digito1_canecas":    "Viu as canecas no armario da cozinha (1o digito)",
+    "pegou_chave":        "Pegou a chave no quarto",
+    "digito2_quadro":     "Olhou atras do quadro do escritorio (2o digito)",
+    "destrancou_gaveta":  "Destrancou a gaveta do escritorio",
+    "digito3_papel":      "Leu o papel da gaveta trancada (3o digito)",
+    "cofre_aberto":       "Abriu o cofre",
+}
 
 
 def mundo_inicial():
@@ -31,6 +45,8 @@ def mundo_inicial():
         "cofre_aberto": False,
         "passos": 0,
         "score": 0,
+        "milestones": [],
+        "t0": time.time(),
         "salas": {
             "sala": {
                 "nome": "Sala de Estar",
@@ -43,6 +59,7 @@ def mundo_inicial():
                     "bilhete": {
                         "tipo": "nota",
                         "pego": False,
+                        "milestone_examinar": "dica_bilhete",
                         "texto": (
                             "Um bilhete velho e rasgado. Partes ilegíveis, mas da pra ler: "
                             "'...o cofre... tres numeros... conta o que ve... olha por tras... "
@@ -51,6 +68,7 @@ def mundo_inicial():
                     },
                     "quadro_antigo": {
                         "tipo": "movel",
+                        "milestone_examinar": "dica_quadro_antigo",
                         "desc": (
                             "Um quadro de paisagem desbotado. Voce o inclina para ver o verso. "
                             "Ha um papel colado atras, escrito a mao:\n"
@@ -70,7 +88,8 @@ def mundo_inicial():
                         "tipo": "container",
                         "aberto": False,
                         "conteudo": "tres canecas",
-                        "pista": "1"
+                        "pista": "1",
+                        "milestone_conteudo": "digito1_canecas"
                     },
                     "prateleira": {
                         "tipo": "movel",
@@ -97,7 +116,8 @@ def mundo_inicial():
                     "gaveta": {
                         "tipo": "container",
                         "aberto": False,
-                        "conteudo_item": "chave"
+                        "conteudo_item": "chave",
+                        "milestone_pegar": "pegou_chave"
                     },
                 },
             },
@@ -112,13 +132,16 @@ def mundo_inicial():
                     },
                     "quadro": {
                         "tipo": "quadro",
-                        "atras": "1"
+                        "atras": "1",
+                        "milestone_examinar": "digito2_quadro"
                     },
                     "gaveta": {
                         "tipo": "container",
                         "aberto": False,
                         "trancada": True,
-                        "conteudo": "um papel com um numero: 9"
+                        "conteudo": "um papel com um numero: 9",
+                        "milestone_destrancar": "destrancou_gaveta",
+                        "milestone_conteudo": "digito3_papel"
                     },
                     "escrivaninha": {
                         "tipo": "movel",
@@ -210,6 +233,17 @@ class Cofre:
     def _objs(self):
         return self.estado["salas"][self.estado["sala_atual"]]["objetos"]
 
+    def _marcar(self, mid):
+        """Registra uma milestone (uma única vez) com tempo e passo."""
+        if not mid or any(m["id"] == mid for m in self.estado["milestones"]):
+            return
+        self.estado["milestones"].append({
+            "id": mid,
+            "label": MILESTONES.get(mid, mid),
+            "passo": self.estado["passos"],
+            "t": round(time.time() - self.estado["t0"], 2),
+        })
+
     def _aplicar(self, acao: str) -> str:
         a = acao.lower().strip()
 
@@ -265,6 +299,8 @@ class Cofre:
         if alvo not in objs:
             return f"Nao ha '{alvo}' aqui."
         d = objs[alvo]
+        if d["tipo"] != "container":
+            self._marcar(d.get("milestone_examinar"))
 
         if d["tipo"] == "nota":
             return d["texto"]
@@ -274,6 +310,7 @@ class Cofre:
 
         if d["tipo"] == "container":
             if d.get("aberto"):
+                self._marcar(d.get("milestone_conteudo"))
                 conteudo = d.get("conteudo") or d.get("conteudo_item") or "vazio"
                 return f"Dentro do {alvo} ha: {conteudo}."
             if d.get("trancada"):
@@ -296,6 +333,7 @@ class Cofre:
             return f"Nao da pra abrir '{alvo}'."
         d = objs[alvo]
         if d.get("aberto"):
+            self._marcar(d.get("milestone_conteudo"))
             conteudo = d.get("conteudo") or d.get("conteudo_item") or "vazio"
             return f"O {alvo} ja esta aberto. Dentro ha: {conteudo}."
         if d.get("trancada"):
@@ -303,6 +341,7 @@ class Cofre:
         d["aberto"] = True
         if d.get("conteudo_item"):
             return f"Voce abre o {alvo}. Ha algo dentro."
+        self._marcar(d.get("milestone_conteudo"))
         return f"Voce abre o {alvo}. Dentro ha: {d['conteudo']}."
 
     def _pegar(self, alvo):
@@ -311,6 +350,7 @@ class Cofre:
             if d["tipo"] == "container" and d.get("aberto") and d.get("conteudo_item") == alvo:
                 self.estado["inventario"].append(alvo)
                 d["conteudo_item"] = None
+                self._marcar(d.get("milestone_pegar"))
                 return f"Voce pega: {alvo}."
         if alvo in objs and objs[alvo]["tipo"] == "nota":
             objs[alvo]["pego"] = True
@@ -336,6 +376,7 @@ class Cofre:
         objs = self._objs()
         if alvo in objs and objs[alvo].get("trancada"):
             objs[alvo]["trancada"] = False
+            self._marcar(objs[alvo].get("milestone_destrancar"))
             return f"Voce usa a {item} e destranca o {alvo}. Agora da pra abrir."
         return f"Nao ha como usar {item} em {alvo} aqui."
 
@@ -351,6 +392,7 @@ class Cofre:
         if num == cofre["codigo"]:
             cofre["aberto"] = True
             self.estado["cofre_aberto"] = True
+            self._marcar("cofre_aberto")
             return f"Voce digita {num}... CLICK. O cofre abre! VOCE VENCEU."
         return f"Voce digita {num}... nada acontece. Codigo errado."
 
@@ -395,7 +437,11 @@ def loop(agente_fn, mostrar=True):
         print("=" * 60)
         print(f"RESULTADO: {'VITORIA' if venceu else 'falhou'} | "
               f"passos={env.estado['passos']} | score={total:+.0f}")
-    return {"venceu": venceu, "passos": env.estado["passos"], "score": total}
+        print("MILESTONES:")
+        for m in env.estado["milestones"]:
+            print(f"  [{m['t']:>7.2f}s  passo {m['passo']:>3}]  {m['label']}")
+    return {"venceu": venceu, "passos": env.estado["passos"], "score": total,
+            "milestones": env.estado["milestones"]}
 
 
 if __name__ == "__main__":

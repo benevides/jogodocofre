@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O Cofre — Análise de Jogadas</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --texto: #e6edf3; --suave: #8b949e; --destaque: #4fc3f7;
+    --ok: #56d364; --erro: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--texto);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    padding: 24px; min-height: 100vh;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitulo { color: var(--suave); font-size: .9rem; margin-bottom: 20px; }
+
+  .filtros {
+    display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+  }
+  .filtros label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--suave); }
+  .filtros select, .filtros input[type=number] {
+    background: var(--bg); color: var(--texto); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; font-size: .85rem; min-width: 110px;
+  }
+  .filtros .check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 8px; }
+  .filtros button {
+    background: var(--destaque); color: #08243a; border: none; border-radius: 6px;
+    padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: .85rem;
+  }
+  .filtros button:hover { filter: brightness(1.1); }
+
+  .resumo { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 18px; min-width: 140px;
+  }
+  .card .valor { font-size: 1.4rem; font-weight: 700; }
+  .card .rotulo { color: var(--suave); font-size: .75rem; margin-top: 2px; }
+
+  .colunas { display: grid; grid-template-columns: 430px 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 1100px) { .colunas { grid-template-columns: 1fr; } }
+
+  .painel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .painel h2 { font-size: .95rem; margin-bottom: 10px; color: var(--destaque); }
+
+  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  th { text-align: left; color: var(--suave); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 7px 8px; border-bottom: 1px solid #21262d; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #1c2330; }
+  tbody tr.selecionada { background: #1a2738; }
+  .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--border); }
+  .venceu { color: var(--ok); } .perdeu { color: var(--erro); }
+  .vazio { color: var(--suave); padding: 20px; text-align: center; font-size: .85rem; }
+
+  #grafico { width: 100%; height: auto; display: block; }
+  .legenda { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: .8rem; }
+  .legenda span { display: flex; align-items: center; gap: 6px; }
+
+  #detalhe { margin-top: 16px; }
+  details.turno {
+    border: 1px solid var(--border); border-radius: 6px;
+    margin: 6px 0; padding: 6px 10px; font-size: .82rem;
+  }
+  details.turno summary { cursor: pointer; }
+  details.turno summary .t { color: var(--suave); }
+  details.turno .pensa { color: var(--suave); margin: 6px 0; }
+  details.turno pre {
+    white-space: pre-wrap; word-break: break-word; background: var(--bg);
+    border-radius: 6px; padding: 8px 10px; margin: 6px 0;
+    font-size: .76rem; color: #c9d1d9; max-height: 320px; overflow-y: auto;
+  }
+  details.turno .resultado { color: var(--ok); margin: 6px 0 2px; }
+  details.prompt summary { color: var(--suave); font-size: .74rem; cursor: pointer; }
+  #status { font-size: .8rem; color: var(--suave); margin-left: auto; padding-bottom: 8px; }
+  .offline { color: var(--erro) !important; }
+</style>
+</head>
+<body>
+
+<h1>🔐 O Cofre — Análise de Jogadas</h1>
+<p class="subtitulo">Tempo total e milestones de cada IA para resolver o enigma. Clique nas jogadas para compará-las no gráfico.</p>
+
+<div class="filtros">
+  <label>Modelo
+    <select id="filtro-modelo"><option value="">Todos</option></select>
+  </label>
+  <label>Tempo mín (s)
+    <input type="number" id="filtro-min" min="0" placeholder="0">
+  </label>
+  <label>Tempo máx (s)
+    <input type="number" id="filtro-max" min="0" placeholder="∞">
+  </label>
+  <label class="check">
+    <input type="checkbox" id="filtro-vitorias"> Só vitórias
+  </label>
+  <button id="btn-recarregar">🔄 Recarregar</button>
+  <span id="status">carregando…</span>
+</div>
+
+<div class="resumo" id="resumo"></div>
+
+<div class="colunas">
+  <div class="painel">
+    <h2>Jogadas</h2>
+    <div id="lista"></div>
+  </div>
+  <div class="painel">
+    <h2>Evolução — quando cada milestone foi atingida</h2>
+    <svg id="grafico" viewBox="0 0 960 460" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legenda" id="legenda"></div>
+    <div id="detalhe"></div>
+  </div>
+</div>
+
+<script>
+const SERVER = "http://localhost:5002";
+
+// Ordem canônica das milestones (eixo Y, de baixo para cima)
+const ORDEM = [
+  "dica_bilhete", "dica_quadro_antigo", "digito1_canecas", "pegou_chave",
+  "digito2_quadro", "destrancou_gaveta", "digito3_papel", "cofre_aberto",
+];
+const NOMES = {
+  dica_bilhete:       "Bilhete (dica)",
+  dica_quadro_antigo: "Verso do quadro antigo",
+  digito1_canecas:    "Canecas no armário (1º díg.)",
+  pegou_chave:        "Chave do quarto",
+  digito2_quadro:     "Atrás do quadro (2º díg.)",
+  destrancou_gaveta:  "Gaveta destrancada",
+  digito3_papel:      "Papel da gaveta (3º díg.)",
+  cofre_aberto:       "🏆 Cofre aberto",
+};
+const CORES = ["#4fc3f7", "#ff8a65", "#aed581", "#ba68c8",
+               "#ffd54f", "#f06292", "#4db6ac", "#e0e0e0"];
+
+let runs = [];
+let selecionadas = new Map();   // run_id -> cor
+
+const $ = id => document.getElementById(id);
+
+const esc = s => String(s == null ? "" : s)
+  .replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function fmtT(s) {
+  if (s == null) return "—";
+  if (s < 60) return s.toFixed(1) + "s";
+  const m = Math.floor(s / 60), r = Math.round(s % 60);
+  return `${m}m ${String(r).padStart(2, "0")}s`;
+}
+function fmtData(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit",
+    year: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+async function carregar() {
+  const st = $("status");
+  st.classList.remove("offline");
+  st.textContent = "carregando…";
+  try {
+    const r = await fetch(SERVER + "/runs");
+    runs = (await r.json()).runs || [];
+    st.textContent = runs.length + " jogada(s) registrada(s)";
+
+    const sel = $("filtro-modelo"), atual = sel.value;
+    const modelos = [...new Set(runs.map(x => x.model))].sort();
+    sel.innerHTML = '<option value="">Todos</option>' +
+      modelos.map(m => `<option value="${m}">${m}</option>`).join("");
+    sel.value = modelos.includes(atual) ? atual : "";
+
+    // remove seleções de jogadas que não existem mais
+    for (const id of [...selecionadas.keys()])
+      if (!runs.some(r => r.run_id === id)) selecionadas.delete(id);
+    // primeira carga: seleciona a jogada mais recente
+    if (selecionadas.size === 0 && runs.length > 0) toggle(runs[0].run_id);
+    render();
+  } catch (e) {
+    st.textContent = "servidor offline — rode: python server.py";
+    st.classList.add("offline");
+    runs = [];
+    render();
+  }
+}
+
+function filtradas() {
+  const modelo = $("filtro-modelo").value;
+  const min = parseFloat($("filtro-min").value);
+  const max = parseFloat($("filtro-max").value);
+  const soVit = $("filtro-vitorias").checked;
+  return runs.filter(r =>
+    (!modelo || r.model === modelo) &&
+    (isNaN(min) || r.tempo_total >= min) &&
+    (isNaN(max) || r.tempo_total <= max) &&
+    (!soVit || r.venceu));
+}
+
+function toggle(id) {
+  if (selecionadas.has(id)) { selecionadas.delete(id); return; }
+  const usadas = new Set(selecionadas.values());
+  const cor = CORES.find(c => !usadas.has(c)) || CORES[selecionadas.size % CORES.length];
+  selecionadas.set(id, cor);
+}
+
+function render() {
+  const lista = filtradas();
+  // mantém no gráfico apenas seleções visíveis no filtro atual
+  const visiveis = new Set(lista.map(r => r.run_id));
+  for (const id of [...selecionadas.keys()])
+    if (!visiveis.has(id)) selecionadas.delete(id);
+
+  renderResumo(lista);
+  renderLista(lista);
+  renderGrafico(lista);
+  renderDetalhe();
+}
+
+function renderResumo(lista) {
+  const vits = lista.filter(r => r.venceu);
+  const tempos = vits.map(r => r.tempo_total);
+  const cards = [
+    [lista.length, "jogadas (filtro)"],
+    [vits.length + " (" + (lista.length ? Math.round(100 * vits.length / lista.length) : 0) + "%)", "vitórias"],
+    [tempos.length ? fmtT(Math.min(...tempos)) : "—", "melhor tempo"],
+    [tempos.length ? fmtT(Math.max(...tempos)) : "—", "pior tempo"],
+    [tempos.length ? fmtT(tempos.reduce((a, b) => a + b, 0) / tempos.length) : "—", "tempo médio"],
+  ];
+  $("resumo").innerHTML = cards.map(([v, l]) =>
+    `<div class="card"><div class="valor">${v}</div><div class="rotulo">${l}</div></div>`).join("");
+}
+
+function renderLista(lista) {
+  if (!lista.length) {
+    $("lista").innerHTML = '<div class="vazio">Nenhuma jogada encontrada.<br>Rode o agente (python agente.py) para gerar logs!</div>';
+    return;
+  }
+  const linhas = lista.map(r => {
+    const cor = selecionadas.get(r.run_id);
+    return `<tr class="${cor ? "selecionada" : ""}" data-id="${r.run_id}">
+      <td><span class="dot" style="background:${cor || "transparent"}"></span></td>
+      <td><strong>${r.model}</strong></td>
+      <td>${fmtData(r.started_at)}</td>
+      <td>${fmtT(r.tempo_total)}</td>
+      <td>${r.passos}</td>
+      <td>${(r.milestones || []).length}/8</td>
+      <td class="${r.venceu ? "venceu" : "perdeu"}">${r.venceu ? "🏆" : "✖"}</td>
+    </tr>`;
+  }).join("");
+  $("lista").innerHTML = `<table>
+    <thead><tr><th></th><th>Modelo</th><th>Data</th><th>Tempo</th><th>Passos</th><th>Milest.</th><th></th></tr></thead>
+    <tbody>${linhas}</tbody></table>`;
+  $("lista").querySelectorAll("tbody tr").forEach(tr =>
+    tr.addEventListener("click", () => { toggle(tr.dataset.id); render(); }));
+}
+
+function renderGrafico(lista) {
+  const svg = $("grafico");
+  const sel = lista.filter(r => selecionadas.has(r.run_id));
+  const W = 960, H = 460, ML = 215, MR = 35, MT = 20, MB = 45;
+  const larg = W - ML - MR, alt = H - MT - MB;
+
+  if (!sel.length) {
+    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" fill="#8b949e" text-anchor="middle"
+      font-size="15">Selecione uma ou mais jogadas na lista ao lado</text>`;
+    $("legenda").innerHTML = "";
+    return;
+  }
+
+  const maxT = Math.max(...sel.map(r => r.tempo_total), 1) * 1.05;
+  const x = t => ML + (t / maxT) * larg;
+  const y = i => MT + alt - ((i + 0.5) / ORDEM.length) * alt;
+
+  // Eixo Y incremental: ordenado pela ordem cronológica em que as milestones
+  // aconteceram nas jogadas selecionadas (média dos tempos). Assim a linha de
+  // progresso é sempre crescente. Milestones não atingidas ficam no topo.
+  const tMedio = {};
+  ORDEM.forEach(id => {
+    const ts = sel
+      .map(r => (r.milestones || []).find(m => m.id === id))
+      .filter(Boolean).map(m => m.t);
+    tMedio[id] = ts.length ? ts.reduce((a, b) => a + b, 0) / ts.length : Infinity;
+  });
+  const ordemY = ORDEM.slice().sort((a, b) =>
+    (tMedio[a] - tMedio[b]) || (ORDEM.indexOf(a) - ORDEM.indexOf(b)));
+
+  let s = "";
+  // grade horizontal + rótulos das milestones
+  ordemY.forEach((id, i) => {
+    const naoAtingida = tMedio[id] === Infinity;
+    s += `<line x1="${ML}" y1="${y(i)}" x2="${W - MR}" y2="${y(i)}" stroke="#21262d"/>
+          <text x="${ML - 10}" y="${y(i) + 4}" fill="${naoAtingida ? "#484f58" : "#8b949e"}"
+           font-size="11.5" text-anchor="end">${NOMES[id]}</text>`;
+  });
+  // eixo X (tempo)
+  const nTicks = 6;
+  for (let k = 0; k <= nTicks; k++) {
+    const t = (maxT * k) / nTicks, px = x(t);
+    s += `<line x1="${px}" y1="${MT}" x2="${px}" y2="${MT + alt}" stroke="#1b2129"/>
+          <text x="${px}" y="${H - 18}" fill="#8b949e" font-size="11" text-anchor="middle">${fmtT(t)}</text>`;
+  }
+  s += `<text x="${ML + larg / 2}" y="${H - 2}" fill="#8b949e" font-size="11" text-anchor="middle">tempo desde o início da jogada</text>`;
+
+  // uma linha por jogada selecionada
+  for (const r of sel) {
+    const cor = selecionadas.get(r.run_id);
+    const ms = (r.milestones || []).filter(m => ORDEM.includes(m.id))
+      .slice().sort((a, b) => a.t - b.t);
+    const pts = ms.map(m => [x(m.t), y(ordemY.indexOf(m.id)), m]);
+    if (pts.length > 1)
+      s += `<polyline points="${pts.map(p => p[0] + "," + p[1]).join(" ")}"
+             fill="none" stroke="${cor}" stroke-width="2" opacity="0.85"/>`;
+    // marca de fim da jogada
+    const fimX = x(r.tempo_total);
+    s += `<line x1="${fimX}" y1="${MT}" x2="${fimX}" y2="${MT + alt}" stroke="${cor}"
+           stroke-dasharray="4 4" opacity="0.45">
+           <title>${r.model} — fim da jogada: ${fmtT(r.tempo_total)} (${r.venceu ? "vitória" : "não resolveu"})</title></line>`;
+    for (const [px, py, m] of pts)
+      s += `<circle cx="${px}" cy="${py}" r="5.5" fill="${cor}" stroke="#0d1117" stroke-width="1.5">
+             <title>${r.model}\n${m.label}\nt = ${fmtT(m.t)} (passo ${m.passo})</title></circle>`;
+  }
+  svg.innerHTML = s;
+
+  $("legenda").innerHTML = sel.map(r =>
+    `<span><span class="dot" style="background:${selecionadas.get(r.run_id)}"></span>
+     ${r.model} · ${fmtData(r.started_at)} · ${fmtT(r.tempo_total)} ${r.venceu ? "🏆" : "✖"}</span>`).join("");
+}
+
+function renderDetalhe() {
+  const det = $("detalhe");
+  if (selecionadas.size !== 1) { det.innerHTML = ""; return; }
+  const id = [...selecionadas.keys()][0];
+  const r = runs.find(x => x.run_id === id);
+  if (!r) { det.innerHTML = ""; return; }
+  const ms = (r.milestones || []).slice().sort((a, b) => a.t - b.t);
+  const linhas = ms.map((m, i) =>
+    `<tr><td>${i + 1}</td><td>${m.label}</td><td>${fmtT(m.t)}</td><td>${m.passo}</td></tr>`).join("");
+  det.innerHTML = `<h2 style="margin-top:16px">Milestones — ${r.model} (${fmtData(r.started_at)})</h2>
+    <table><thead><tr><th>#</th><th>Milestone</th><th>Tempo</th><th>Passo</th></tr></thead>
+    <tbody>${linhas || '<tr><td colspan="4" class="vazio">Nenhuma milestone atingida.</td></tr>'}</tbody></table>`;
+
+  // Conversa da jogada: cada turno com pensamento, resposta da LLM e resultado
+  const hist = r.historico || [];
+  if (!hist.length) return;
+  const turnos = hist.map(h => {
+    const conv = h.conversa || {};
+    const corpo = conv.resposta
+      ? `<pre>${esc(conv.resposta)}</pre>`
+      : (h.pensamento ? `<p class="pensa">💭 ${esc(h.pensamento)}</p>` : "");
+    const prompt = conv.enviado
+      ? `<details class="prompt"><summary>prompt enviado à LLM</summary><pre>${esc(conv.enviado)}</pre></details>`
+      : "";
+    return `<details class="turno">
+      <summary><strong>#${h.passo}</strong> <span class="t">· ${fmtT(h.t)} ·</span> ${esc(h.acao)}</summary>
+      ${corpo}${prompt}
+      <p class="resultado">→ ${esc(h.resultado)}</p>
+    </details>`;
+  }).join("");
+  const sys = r.system_prompt
+    ? `<details class="turno"><summary><strong>System prompt</strong> <span class="t">· enviado em toda chamada</span></summary><pre>${esc(r.system_prompt)}</pre></details>`
+    : "";
+  det.innerHTML += `<h2 style="margin-top:16px">Conversa da jogada (${hist.length} turnos)</h2>${sys}${turnos}`;
+}
+
+// listeners
+["filtro-modelo", "filtro-min", "filtro-max", "filtro-vitorias"].forEach(id =>
+  $(id).addEventListener("input", render));
+$("btn-recarregar").addEventListener("click", carregar);
+
+carregar();
+</script>
+</body>
+</html>

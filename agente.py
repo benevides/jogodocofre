@@ -56,6 +56,9 @@ def call_llm(obs, historico=None, god_message=None):
     """
     Chama a LLM sem fornecer lista de ações válidas.
     O agente aprende com as respostas do ambiente.
+
+    Retorna (pensamento, acao, resposta_completa, prompt_enviado) —
+    os dois últimos vão para o log da conversa no servidor.
     """
     if historico is None:
         historico = []
@@ -117,48 +120,50 @@ ACAO: [sua próxima ação]"""
                 print(f"  [PENSA] {pensamento[:90]}...")
                 print(f"  [ACAO]  '{acao}'")
 
-            return pensamento, acao
+            return pensamento, acao, texto, user_message
 
         except requests.exceptions.Timeout:
             print(f"  ⚠  Timeout (tentativa {tentativa}/3)")
             if tentativa < 3:
                 time.sleep(tentativa * 3)
             else:
-                return None, None
+                return None, None, None, user_message
 
         except requests.exceptions.ConnectionError:
             print(f"  ⚠  Sem conexão (tentativa {tentativa}/3)")
             if tentativa < 3:
                 time.sleep(tentativa * 2)
             else:
-                return None, None
+                return None, None, None, user_message
 
         except requests.exceptions.HTTPError as e:
             print(f"  ✗  HTTP {e.response.status_code}")
-            return None, None
+            return None, None, None, user_message
 
         except (KeyError, json.JSONDecodeError):
             print(f"  ⚠  Resposta fora do padrão (tentativa {tentativa}/3)")
             if tentativa < 3:
                 time.sleep(2)
             else:
-                return None, None
+                return None, None, None, user_message
 
         except Exception as e:
             print(f"  ⚠  Erro: {e} (tentativa {tentativa}/3)")
             if tentativa < 3:
                 time.sleep(2)
             else:
-                return None, None
+                return None, None, None, user_message
 
-    return None, None
+    return None, None, None, user_message
 
 
 # ── Chamadas ao servidor ─────────────────────────────────────────────────────
 
 def reset_cofre():
     try:
-        r = requests.get(f"{COFRE_SERVER}/reset", timeout=5)
+        r = requests.post(f"{COFRE_SERVER}/reset",
+                          json={"model": API_MODEL,
+                                "system_prompt": SYSTEM_PROMPT}, timeout=5)
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -186,10 +191,14 @@ def get_god_message():
         return "", 0
 
 
-def send_thought(pensamento):
+def send_conversa(prompt_enviado, resposta, pensamento, acao):
+    """Envia a troca completa com a LLM para entrar no log da jogada."""
     try:
-        requests.post(f"{COFRE_SERVER}/thought",
-                      json={"thought": pensamento}, timeout=3)
+        requests.post(f"{COFRE_SERVER}/conversa",
+                      json={"enviado":    prompt_enviado,
+                            "resposta":   resposta,
+                            "pensamento": pensamento,
+                            "acao":       acao}, timeout=3)
     except Exception:
         pass
 
@@ -244,16 +253,16 @@ def main():
             print(f"  ⚡ MENSAGEM DIVINA: {god_msg}\n")
 
         # Consulta LLM
-        pensamento, acao = call_llm(obs, historico, god_msg or None)
+        pensamento, acao, resposta_llm, prompt_llm = call_llm(obs, historico, god_msg or None)
 
         if acao is None:
             print("  ⏳ LLM não respondeu. Aguardando 5s...\n")
             time.sleep(5)
             continue
 
+        send_conversa(prompt_llm, resposta_llm, pensamento, acao)
         if pensamento and pensamento != "(sem pensamento)":
             print(f"\n  💭 {pensamento}")
-            send_thought(pensamento)
 
         print(f"\n  ✅ AÇÃO → '{acao}'")
         print(f"{'─' * 70}\n")

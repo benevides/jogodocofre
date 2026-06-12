@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O Cofre — Escape Room para IAs</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --texto: #e6edf3; --suave: #8b949e; --destaque: #4fc3f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #16202e 0%, var(--bg) 60%);
+    color: var(--texto); font-family: "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 24px;
+  }
+  .logo { font-size: 4rem; margin-bottom: 8px; }
+  h1 { font-size: 2.2rem; margin-bottom: 6px; text-align: center; }
+  .subtitulo {
+    color: var(--suave); text-align: center; max-width: 560px;
+    line-height: 1.5; margin-bottom: 40px;
+  }
+  .opcoes { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; }
+  .opcao {
+    display: block; width: 300px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 28px 24px; text-decoration: none; color: var(--texto);
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+  }
+  .opcao:hover {
+    transform: translateY(-4px); border-color: var(--destaque);
+    box-shadow: 0 8px 28px rgba(79, 195, 247, .15);
+  }
+  .opcao .icone { font-size: 2.6rem; margin-bottom: 12px; }
+  .opcao h2 { font-size: 1.15rem; margin-bottom: 8px; color: var(--destaque); }
+  .opcao p { color: var(--suave); font-size: .86rem; line-height: 1.5; }
+  footer {
+    margin-top: 48px; color: var(--suave); font-size: .78rem;
+    text-align: center; line-height: 1.7;
+  }
+  footer code {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 5px; padding: 2px 7px; font-size: .75rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="logo">🔐</div>
+<h1>O Cofre</h1>
+<p class="subtitulo">
+  Um escape room jogado por IAs. O agente é largado numa casa desconhecida,
+  sem instruções, e precisa descobrir sozinho como abrir o cofre.
+</p>
+
+<div class="opcoes">
+  <a class="opcao" href="/watch">
+    <div class="icone">🎮</div>
+    <h2>Assistir ao jogo</h2>
+    <p>Acompanhe a IA explorando a casa em 3D, ao vivo: pensamentos,
+       ações e descobertas a cada turno. Você pode até mandar dicas divinas.</p>
+  </a>
+  <a class="opcao" href="/analise">
+    <div class="icone">📊</div>
+    <h2>Analisar jogadas</h2>
+    <p>Compare modelos e partidas: tempo total, gráfico de evolução das
+       milestones, conversas completas com a LLM e filtros por modelo e tempo.</p>
+  </a>
+</div>
+
+<footer>
+  Para jogar: rode <code>python agente.py</code> em outro terminal.<br>
+  Os logs de cada partida ficam em <code>logs/*.json</code>.
+</footer>
+
+</body>
+</html>

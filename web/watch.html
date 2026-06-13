@@ -253,7 +253,8 @@
     </ul>
   </nav>
   <div class="sidebar-footer">
-    Use <code>python src/agente.py</code> para iniciar uma partida.
+    Use <code>python src/agente.py</code> para iniciar uma partida.<br><br>
+    🖱️ arraste p/ girar · scroll p/ zoom · <b>duplo clique p/ focar</b> (no vazio: visão geral)
   </div>
 </aside>
 
@@ -403,7 +404,7 @@ const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.target.set(0, .8, -2.5);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.minDistance   = 5;
+controls.minDistance   = 1.2;
 controls.maxDistance   = 55;
 controls.maxPolarAngle = Math.PI / 2.1;
 controls.update();
@@ -1013,6 +1014,28 @@ function updateConfetti(dt){
     if(age > 4){ scene.remove(m); m.geometry.dispose(); m.material.dispose(); confs.splice(i,1); }
   }
 }
+
+// ── FOCO DA CÂMERA (duplo clique aproxima de qualquer canto da casa) ─────────
+const raycaster = new THREE.Raycaster();
+const pointerV  = new THREE.Vector2();
+const DEFAULT_TARGET = new THREE.Vector3(0,.8,-2.5);
+renderer.domElement.addEventListener('dblclick', (e)=>{
+  pointerV.x =  (e.clientX/innerWidth)*2-1;
+  pointerV.y = -(e.clientY/innerHeight)*2+1;
+  raycaster.setFromCamera(pointerV, camera);
+  const hits = raycaster.intersectObjects(scene.children, true);
+  // duplo clique no vazio volta para a visão geral
+  const to = hits.length ? hits[0].point.clone() : DEFAULT_TARGET.clone();
+  if(to.y > 2.2) to.y = 2.2;
+  const d = new THREE.Vector3().subVectors(to, controls.target);
+  // desloca alvo e câmera juntos: o ponto clicado vira o centro do zoom
+  tween(controls.target,'x',controls.target.x+d.x,.6);
+  tween(controls.target,'y',controls.target.y+d.y,.6);
+  tween(controls.target,'z',controls.target.z+d.z,.6);
+  tween(camera.position,'x',camera.position.x+d.x,.6);
+  tween(camera.position,'y',camera.position.y+d.y,.6);
+  tween(camera.position,'z',camera.position.z+d.z,.6);
+});
 
 // ── CAMINHADA (waypoints pelas portas, nada de atravessar parede) ────────────
 const walker = {pts:[], arrive:null};

@@ -289,6 +289,8 @@ def current_game():
         "terminated":       env.estado["cofre_aberto"],
         "valid_actions":    env._acoes_validas(),   # só para o watch
         "milestones":       env.estado["milestones"],
+        "last_action":      historico[-1]["acao"] if historico else "",
+        "modo":             run_modo,
         "thought":          current_thought,
         "god_message_count": god_message_count
     })

@@ -165,7 +165,7 @@
   /* Status banner */
   #status-banner{position:fixed;top:54px;left:50%;transform:translateX(-50%);background:var(--glass);border:1px solid var(--line);border-radius:20px;padding:6px 18px;font-size:11px;color:var(--muted);z-index:10;backdrop-filter:blur(10px);white-space:nowrap;transition:left 0.3s ease, transform 0.3s ease;}
   #status-banner.playing{color:var(--accent);}
-  body.sidebar-open #status-banner { transform: translateX(calc(-50% + var(--sb-width)/2)); }
+  body.sidebar-open #status-banner { left: calc(50% + var(--sb-width)/2); transform: translateX(-50%); }
 
   /* Balão de pensamento */
   #bubble{
@@ -342,27 +342,65 @@ if(localStorage.getItem('cofre-sidebar') === 'closed'){
 updateSidebar();
 
 // Usa a origem da página quando servido pelo server.py; fallback p/ file://
-const SERVER   = location.protocol.startsWith('http') ? location.origin
-                                                       : 'http://localhost:5002';
-const ROOM_POS = {sala:[0,0], cozinha:[-9.5,0], quarto:[0,-9.5], escritorio:[9.5,0]};
+const SERVER = location.protocol.startsWith('http') ? location.origin
+                                                    : 'http://localhost:5002';
+
+// ─── MAPA DA CASA ─────────────────────────────────────────────────────────────
+// sala 7x7 no centro; cozinha/quarto/escritorio 6x6 ligados por corredores com
+// portas de verdade. Coordenadas em [x,z].
+const ROOM_STAND = { sala:[0,.3], cozinha:[-9.2,.2], quarto:[0,-9.2], escritorio:[9.2,.2] };
+
+// Caminho de cada cômodo ATÉ a sala (porta de dentro → corredor → porta da sala)
+const DOOR_CHAIN = {
+  cozinha:    [[-7.2,0],[-5,0],[-2.7,0]],
+  quarto:     [[0,-7.2],[0,-5],[0,-2.7]],
+  escritorio: [[7.2,0],[5,0],[2.7,0]],
+};
+
+// Onde o agente para e para onde olha ao interagir com cada objeto
+const OBJ_SPOTS = {
+  sala: {
+    mesa:          {stand:[0,1.5],      look:[0,2.55]},
+    bilhete:       {stand:[0,1.5],      look:[0,2.55]},
+    quadro_antigo: {stand:[-2.45,2.1],  look:[-3.4,2.1]},
+  },
+  cozinha: {
+    armario:    {stand:[-9.5,-1.45], look:[-9.5,-2.6]},
+    prateleira: {stand:[-11.3,.6],   look:[-12.3,.6]},
+    fogao:      {stand:[-9.5,1.45],  look:[-9.5,2.55]},
+  },
+  quarto: {
+    cama:         {stand:[1.8,-9.65],  look:[1.8,-11.1]},
+    guarda_roupa: {stand:[-1.55,-9.0], look:[-2.6,-9.0]},
+    gaveta:       {stand:[-1.2,-10.9], look:[-1.2,-12.0]},
+  },
+  escritorio: {
+    cofre:        {stand:[9.5,-1.05],  look:[9.5,-2.45]},
+    quadro:       {stand:[11.35,0],    look:[12.4,0]},
+    gaveta:       {stand:[10.4,1.4],   look:[10.4,2.55]},
+    escrivaninha: {stand:[7.4,-1.3],   look:[7.4,-2.45]},
+    livro:        {stand:[7.7,-1.3],   look:[7.7,-2.35]},
+  },
+};
 
 // ── RENDERER ────────────────────────────────────────────────────────────────
 const stage  = document.getElementById('stage');
 const scene  = new THREE.Scene();
-scene.background = new THREE.Color(0x141a13);
-scene.fog        = new THREE.Fog(0x141a13, 25, 62);
+scene.background = new THREE.Color(0x10150f);
+scene.fog        = new THREE.Fog(0x10150f, 32, 85);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 200);
-camera.position.set(0, 18, 22);
+camera.position.set(0, 15.5, 20.5);
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1, -3);
+controls.target.set(0, .8, -2.5);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance   = 5;
@@ -370,105 +408,837 @@ controls.maxDistance   = 55;
 controls.maxPolarAngle = Math.PI / 2.1;
 controls.update();
 
-// ── LIGHTS ──────────────────────────────────────────────────────────────────
-const hemi = new THREE.HemisphereLight(0xffffff, 0x40434d, 1.0);
+// ── LUZES ───────────────────────────────────────────────────────────────────
+const hemi = new THREE.HemisphereLight(0xfff6e6, 0x35392f, .75);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-sun.position.set(8,18,6); sun.castShadow = true;
+const sun = new THREE.DirectionalLight(0xfff2dd, .7);
+sun.position.set(12, 22, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
+sun.shadow.camera.top  = 18;  sun.shadow.camera.bottom = -18;
+sun.shadow.camera.near = 2;   sun.shadow.camera.far = 55;
+sun.shadow.bias = -0.0004;
 scene.add(sun);
+// uma luz quente "de teto" por cômodo
+[[0,0],[-9.5,0],[0,-9.5],[9.5,0]].forEach(p=>{
+  const L = new THREE.PointLight(0xffd9a8, .45, 11, 2);
+  L.position.set(p[0], 3.4, p[1]);
+  scene.add(L);
+});
 
-// ── HELPERS ─────────────────────────────────────────────────────────────────
-function box(w,h,d,col,recv){
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w,h,d),
-    new THREE.MeshStandardMaterial({color:col, roughness:.85})
-  );
-  if(recv) m.receiveShadow = true;
+// ── HELPERS DE CONSTRUÇÃO ────────────────────────────────────────────────────
+function M(col, opts){
+  return new THREE.MeshStandardMaterial(Object.assign({color:col, roughness:.85}, opts||{}));
+}
+function B(w,h,d,m){
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), (m && m.isMaterial) ? m : M(m));
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  return mesh;
+}
+function CYL(rt,rb,h,m,seg){
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||14), (m && m.isMaterial) ? m : M(m));
+  mesh.castShadow = true;
+  return mesh;
+}
+function SPH(r,m,seg){
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(r,seg||12,seg||12), (m && m.isMaterial) ? m : M(m));
+  mesh.castShadow = true;
+  return mesh;
+}
+function G(x,y,z){ const g = new THREE.Group(); if(x!==undefined) g.position.set(x,y,z); return g; }
+
+// Texturas procedurais (canvas) — pisos, quadros e papéis
+function canvasTexture(draw, rx, ry){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  draw(c.getContext('2d'), 256);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  if(rx) t.repeat.set(rx, ry||rx);
+  return t;
+}
+function drawWood(g,s){
+  let seed = 7; const rnd = ()=> (seed = (seed*16807)%2147483647)/2147483647;
+  g.fillStyle = '#9b7a52'; g.fillRect(0,0,s,s);
+  const rows = 6, rh = s/rows;
+  for(let i=0;i<rows;i++){
+    const v = (18*rnd()-9)|0;
+    g.fillStyle = 'rgb('+(150+v)+','+(116+v)+','+(78+v)+')';
+    g.fillRect(0, i*rh, s, rh-2);
+    g.fillStyle = 'rgba(60,38,20,.35)';
+    g.fillRect(((i%2)? s*.55 : s*.2)+rnd()*s*.2, i*rh, 3, rh);
+    g.strokeStyle = 'rgba(80,52,28,.25)'; g.lineWidth = 1.5;
+    g.beginPath();
+    g.moveTo(0, i*rh+rh*.3+rnd()*4);
+    g.bezierCurveTo(s*.3, i*rh+rh*.55, s*.6, i*rh+rh*.2, s, i*rh+rh*.5);
+    g.stroke();
+  }
+  g.fillStyle = 'rgba(40,24,12,.5)';
+  for(let i=1;i<rows;i++) g.fillRect(0, i*rh-2, s, 2);
+}
+function drawTiles(g,s){
+  g.fillStyle = '#9da89b'; g.fillRect(0,0,s,s);
+  const n = 4, w = s/n;
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+    g.fillStyle = (i+j)%2 ? '#b9c2b4' : '#cdd5c8';
+    g.fillRect(i*w+2, j*w+2, w-4, w-4);
+  }
+}
+function drawOldArt(g,s){
+  const grd = g.createLinearGradient(0,0,0,s);
+  grd.addColorStop(0,'#c8b98a'); grd.addColorStop(.55,'#b7a276'); grd.addColorStop(1,'#8e7a52');
+  g.fillStyle = grd; g.fillRect(0,0,s,s);
+  g.fillStyle = '#7d6b46';
+  g.beginPath(); g.moveTo(0,s*.7);
+  g.quadraticCurveTo(s*.3,s*.45,s*.55,s*.68);
+  g.quadraticCurveTo(s*.8,s*.5,s,s*.66);
+  g.lineTo(s,s); g.lineTo(0,s); g.fill();
+  g.fillStyle = 'rgba(214,188,130,.85)';
+  g.beginPath(); g.arc(s*.75,s*.28,s*.09,0,7); g.fill();
+  g.fillStyle = 'rgba(60,44,20,.18)';
+  for(let i=0;i<5;i++) g.fillRect(0, i*s/5+8, s, 2);   // desbotado/riscado
+}
+function drawSunset(g,s){
+  const grd = g.createLinearGradient(0,0,0,s);
+  grd.addColorStop(0,'#2c3e66'); grd.addColorStop(.6,'#c4744a'); grd.addColorStop(1,'#e0a35c');
+  g.fillStyle = grd; g.fillRect(0,0,s,s);
+  g.fillStyle = '#f5c66a';
+  g.beginPath(); g.arc(s*.5,s*.55,s*.11,0,7); g.fill();
+  g.fillStyle = '#222a40';
+  g.beginPath(); g.moveTo(0,s); g.lineTo(0,s*.72); g.lineTo(s*.3,s*.5); g.lineTo(s*.52,s*.74); g.lineTo(s*.74,s*.55); g.lineTo(s,s*.78); g.lineTo(s,s); g.fill();
+}
+function drawNote(g,s){
+  g.fillStyle = '#f2efe0'; g.fillRect(0,0,s,s);
+  g.strokeStyle = 'rgba(90,80,60,.5)'; g.lineWidth = 3;
+  for(let i=1;i<7;i++){
+    g.beginPath(); g.moveTo(s*.12, i*s/8); g.lineTo(s*(.62+ (i%3)*.1), i*s/8); g.stroke();
+  }
+}
+function drawDigit(d){
+  return function(g,s){
+    g.fillStyle = '#f4efdd'; g.fillRect(0,0,s,s);
+    g.strokeStyle = '#c9c2a8'; g.lineWidth = 8; g.strokeRect(6,6,s-12,s-12);
+    g.fillStyle = '#39342a';
+    g.font = 'bold 170px Georgia'; g.textAlign = 'center';
+    g.fillText(d, s/2, s*.72);
+  };
+}
+
+// ── PISOS ────────────────────────────────────────────────────────────────────
+function woodFloor(cx,cz,w,d,tint){
+  const tex = canvasTexture(drawWood, w/2.2, d/2.2);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,.12,d),
+    new THREE.MeshStandardMaterial({map:tex, color:tint||0xffffff, roughness:.92}));
+  m.position.set(cx,-.06,cz); m.receiveShadow = true; scene.add(m); return m;
+}
+function tileFloor(cx,cz,w,d){
+  const tex = canvasTexture(drawTiles, w/1.5, d/1.5);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,.12,d),
+    new THREE.MeshStandardMaterial({map:tex, roughness:.6}));
+  m.position.set(cx,-.06,cz); m.receiveShadow = true; scene.add(m); return m;
+}
+woodFloor(0,0,7,7);                       // sala
+tileFloor(-9.5,0,6,6);                    // cozinha
+woodFloor(0,-9.5,6,6,0xe3cfd8);           // quarto
+woodFloor(9.5,0,6,6,0xd9c2a0);            // escritorio
+woodFloor(-5,0,3.0,1.98,0xcbb89a);        // corredores
+woodFloor(5,0,3.0,1.98,0xcbb89a);
+woodFloor(0,-5,1.98,3.0,0xcbb89a);
+
+// ── PAREDES COM PORTAS ───────────────────────────────────────────────────────
+const WALL_H = 1.5, WALL_T = .18;
+const wallMat = M(0x70766a, {roughness:.95});
+const capMat  = M(0x4c5246);
+function wallSeg(cx,cz,w,d,h){
+  h = h || WALL_H;
+  const m = B(w,h,d,wallMat); m.position.set(cx,h/2,cz); scene.add(m);
+  const cap = B(w+.06,.06,d+.06,capMat); cap.position.set(cx,h+.03,cz); scene.add(cap);
   return m;
 }
-function add(m){ scene.add(m); return m; }
-function floor(cx,cz,s,col){ const f=box(s,.1,s,col,true); f.position.set(cx,-.05,cz); return add(f); }
-function strip(x,z,w,d){ const f=box(w,.07,d,0x3a3d45,true); f.position.set(x,-.04,z); add(f); }
-function wall(cx,cz,w,d){ const m=box(w,1.4,d,0x53575f); m.position.set(cx,.7,cz); add(m); }
-function room(cx,cz,s,col,skip){
-  floor(cx,cz,s,col); const h=s/2;
-  if(skip!=='N') wall(cx,cz-h,s,.2);
-  if(skip!=='S') wall(cx,cz+h,s,.2);
-  if(skip!=='E') wall(cx+h,cz,.2,s);
-  if(skip!=='W') wall(cx-h,cz,.2,s);
-}
-function hl(m){ m.material.emissive=new THREE.Color(0x5a8a5a); m.material.emissiveIntensity=.45; }
-function unhl(m){ m.material.emissive=new THREE.Color(0); m.material.emissiveIntensity=0; }
+function wallX(x0,x1,z,h){ return wallSeg((x0+x1)/2, z, Math.abs(x1-x0), WALL_T, h); }
+function wallZ(z0,z1,x,h){ return wallSeg(x, (z0+z1)/2, WALL_T, Math.abs(z1-z0), h); }
 
-// ── ROOMS ────────────────────────────────────────────────────────────────────
-room( 0,    0,   7, 0x6b6f78, 'X');
-room(-9.5,  0,   6, 0x4a5a52, 'E');
-room( 0,  -9.5,  6, 0x5a4a5a, 'S');
-room( 9.5,  0,   6, 0x5a554a, 'W');
-strip(-6.2, 0, 3.4, 2);
-strip(0, -6.2, 2, 3.4);
-strip(6.2, 0, 3.4, 2);
-
-// ── OBJETOS PRINCIPAIS (iguais ao V1) ────────────────────────────────────────
-
-// Sala
-const table   = add(box(1.6,.6,.9,  0x8a6a4a)); table.position.set(0,.3,-2.7);
-const note    = add(box(.4,.05,.3,  0xf2efe0)); note.position.set(0,.63,-2.7);
-
-// Sala — red herring: quadro_antigo na parede oeste
-const oldPainting = add(box(1.0,.7,.05, 0x7a6a4a)); oldPainting.position.set(-3.3,1.0,0);
-
+// Sala (portas para os 3 lados; parede da frente mais baixa p/ ver dentro)
+wallX(-3.5,-0.9,-3.5); wallX(0.9,3.5,-3.5);     // norte (porta → quarto)
+wallX(-3.5,3.5,3.5,.8);                          // sul (frente da câmera)
+wallZ(-3.5,-0.9,-3.5); wallZ(0.9,3.5,-3.5);      // oeste (porta → cozinha)
+wallZ(-3.5,-0.9,3.5);  wallZ(0.9,3.5,3.5);       // leste (porta → escritório)
 // Cozinha
-const cabinet = add(box(1.4,1.6,.7, 0x6f5a3a)); cabinet.position.set(-9.5,.8,-2.6);
-const cabDoor = add(box(1.36,1.5,.06,0x7a653f)); cabDoor.position.set(-9.5,.8,-2.24);
-
-// Cozinha — red herrings
-const shelf = add(box(1.2,.08,.25, 0x9a7a5a)); shelf.position.set(-12.0,.9, 0);
-const fogao = add(box(1.0,.7,.7,   0x5a5a62)); fogao.position.set(-9.5,.35, 2.4);
-
+wallZ(-3,3,-12.5);
+wallX(-12.5,-6.5,-3); wallX(-12.5,-6.5,3,.8);
+wallZ(-3,-0.9,-6.5);  wallZ(0.9,3,-6.5);         // porta → sala
 // Quarto
-const dresser = add(box(1.6,1.0,.8, 0x7a5a6a)); dresser.position.set(0,.5,-11.6);
-const dreDraw = add(box(1.4,.4,.1,  0x8a6a7a)); dreDraw.position.set(0,.55,-11.18);
-
-// Quarto — red herrings: cama e guarda-roupa
-const bed      = add(box(2.0,.35,1.2, 0x8a7a9a)); bed.position.set(2.0,.18,-9.5);
-const pillow   = add(box(.8,.12,.5,   0xf0ede8)); pillow.position.set(2.0,.42,-10.0);
-const wardrobe = add(box(1.2,1.8,.5,  0x5a4a3a)); wardrobe.position.set(-2.6,.9,-9.5);
-
+wallX(-3,3,-12.5);
+wallZ(-12.5,-6.5,-3); wallZ(-12.5,-6.5,3);
+wallX(-3,-0.9,-6.5);  wallX(0.9,3,-6.5);         // porta → sala
 // Escritório
-const safe     = add(box(1.2,1.2,1.0,0x9aa0a8)); safe.position.set(9.5,.6,-2.4);
-const safeDoor = add(box(1.1,1.1,.08,0xb0b6be)); safeDoor.position.set(9.5,.6,-1.88);
-const painting = add(box(1.2,.9,.06, 0xcaa05a)); painting.position.set(12.3,1.0,0);
-const lockDraw = add(box(1.4,1.0,.8, 0x6a5a4a)); lockDraw.position.set(9.5,.5,2.6);
-const lockFace = add(box(1.3,.9,.08, 0x7a6a4f)); lockFace.position.set(9.5,.5,2.18);
+wallZ(-3,3,12.5);
+wallX(6.5,12.5,-3);  wallX(6.5,12.5,3,.8);
+wallZ(-3,-0.9,6.5);  wallZ(0.9,3,6.5);           // porta → sala
+// Corredores
+wallX(-6.5,-3.5,-.99); wallX(-6.5,-3.5,.99);
+wallX(3.5,6.5,-.99);   wallX(3.5,6.5,.99);
+wallZ(-6.5,-3.5,-.99); wallZ(-6.5,-3.5,.99);
 
-// Escritório — red herrings: escrivaninha e livro
-const desk = add(box(1.6,.75,.7, 0x7a6a4a)); desk.position.set(7.3,.38, 0);
-const book = add(box(.25,.35,.18,0x4a3a5a)); book.position.set(7.3,.76,.1);
+// Molduras das portas + portas abertas (charme!)
+const frameMat = M(0x5e452c);
+function doorPosts(p1,p2){
+  [p1,p2].forEach(p=>{
+    const post = B(.16,1.7,.16,frameMat); post.position.set(p[0],.85,p[1]); scene.add(post);
+  });
+  const horiz = Math.abs(p1[0]-p2[0]) > Math.abs(p1[1]-p2[1]);
+  const lin = B(horiz?2.24:.2, .14, horiz?.2:2.24, frameMat);
+  lin.position.set((p1[0]+p2[0])/2, 1.72, (p1[1]+p2[1])/2); scene.add(lin);
+}
+doorPosts([-3.5,-.97],[-3.5,.97]);
+doorPosts([3.5,-.97],[3.5,.97]);
+doorPosts([-.97,-3.5],[.97,-3.5]);
+function doorPanel(hx,hz,rotY){
+  const h = G(hx,0,hz);
+  const p = B(.07,1.46,1.66,M(0x7b5a38)); p.position.set(0,.76,.83);
+  const knob = SPH(.035, M(0xd8b04a,{metalness:.6,roughness:.4})); knob.position.set(.06,.78,1.45);
+  h.add(p,knob); h.rotation.y = rotY; scene.add(h);
+  return h;
+}
+doorPanel(-3.5,-.9,-1.5);            // porta da cozinha, aberta no corredor
+doorPanel( 3.5,-.9, 1.5);            // porta do escritório
+doorPanel(-.9,-3.5, Math.PI*.97);    // porta do quarto
 
-// Chave (invisível até ser pega)
-const key = new THREE.Mesh(
-  new THREE.BoxGeometry(.18,.18,.18),
-  new THREE.MeshStandardMaterial({color:0xefc23a, emissive:0x6a5400, emissiveIntensity:.6})
-);
-key.visible = false;
-scene.add(key);
+// ── QUADROS (agora de frente, com moldura e tela pintada) ────────────────────
+function makePainting(w,h,frameCol,drawFn){
+  const outer = new THREE.Group();
+  const tilt  = new THREE.Group();
+  const frame = B(w+.16, h+.16, .07, M(frameCol,{roughness:.6}));
+  const canvasMesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,.08),
+    new THREE.MeshStandardMaterial({map:canvasTexture(drawFn), roughness:.9}));
+  canvasMesh.position.z = .01; canvasMesh.castShadow = true;
+  tilt.add(frame, canvasMesh);
+  outer.add(tilt);
+  outer.userData.tilt = tilt;
+  return outer;
+}
+// Sala — quadro_antigo na parede oeste (de frente para dentro da sala)
+const oldPaintG = makePainting(.94,.64, 0x4a3826, drawOldArt);
+oldPaintG.position.set(-3.39,1.08,2.1);
+oldPaintG.rotation.y = Math.PI/2;
+scene.add(oldPaintG);
+// Escritório — quadro na parede leste, escondendo o dígito riscado
+const offPaintG = makePainting(1.06,.76, 0xa8842e, drawSunset);
+offPaintG.position.set(12.39,1.12,0);
+offPaintG.rotation.y = -Math.PI/2;
+scene.add(offPaintG);
+const digit1 = new THREE.Mesh(new THREE.PlaneGeometry(.3,.36),
+  new THREE.MeshStandardMaterial({map:canvasTexture(drawDigit('1')), roughness:.9}));
+digit1.position.set(12.405,1.05,.32);
+digit1.rotation.y = -Math.PI/2;
+scene.add(digit1);
 
-// ── AGENTE ───────────────────────────────────────────────────────────────────
-const agent  = new THREE.Group();
-const agBody = new THREE.Mesh(
-  new THREE.CylinderGeometry(.34,.34,1.0,18),
-  new THREE.MeshStandardMaterial({color:0x5a7a5a, roughness:.5})
-);
-agBody.position.y = .5;
-const agHead = new THREE.Mesh(
-  new THREE.SphereGeometry(.3,18,18),
-  new THREE.MeshStandardMaterial({color:0x8faf8f, roughness:.5})
-);
-agHead.position.y = 1.15;
-agent.add(agBody); agent.add(agHead);
-agent.position.set(0,0,0);
+// ── SALA: mesa com pernas + bilhete ──────────────────────────────────────────
+const woodDark = 0x7a5a3c;
+const mesaG = G(0,0,2.55);
+{
+  const top = B(1.7,.08,1.0, M(woodDark)); top.position.y = .64; mesaG.add(top);
+  [[-.75,-.42],[.75,-.42],[-.75,.42],[.75,.42]].forEach(p=>{
+    const leg = B(.09,.6,.09, M(0x5e452c)); leg.position.set(p[0],.3,p[1]); mesaG.add(leg);
+  });
+}
+scene.add(mesaG);
+const noteG = G(.18,.69,2.42);
+{
+  const paper = new THREE.Mesh(new THREE.BoxGeometry(.4,.015,.3),
+    new THREE.MeshStandardMaterial({map:canvasTexture(drawNote), roughness:.95}));
+  paper.castShadow = true; noteG.add(paper);
+  noteG.rotation.y = .5;
+}
+scene.add(noteG);
+
+// ── COZINHA: armário com portas e canecas, prateleira, fogão ────────────────
+const cabG = G(-9.5,0,-2.62);
+let cabDoorL, cabDoorR, mugsG;
+{
+  const wood = 0x6f5a3a, woodIn = 0x4e3f29;
+  const sideL = B(.05,1.6,.62,M(wood)); sideL.position.set(-.7,.88,0);
+  const sideR = B(.05,1.6,.62,M(wood)); sideR.position.set(.7,.88,0);
+  const top   = B(1.46,.06,.66,M(0x5e452c)); top.position.set(0,1.7,0);
+  const base  = B(1.4,.16,.58,M(0x5e452c)); base.position.set(0,.08,0);
+  const back  = B(1.4,1.56,.04,M(woodIn)); back.position.set(0,.9,-.28);
+  const bot   = B(1.36,.05,.56,M(woodIn)); bot.position.set(0,.2,0);
+  const shelf = B(1.32,.04,.55,M(woodIn)); shelf.position.set(0,.92,0);
+  cabG.add(sideL,sideR,top,base,back,bot,shelf);
+  // as três canecas (o 1º dígito!) — ficam escondidas atrás das portas
+  mugsG = G(0,.94,.02);
+  [[-.35,0xc4524a],[0,0x4a7ac4],[.35,0xd9b343]].forEach((mc,i)=>{
+    const mg = G(mc[0],0,0);
+    const body = CYL(.07,.06,.13,M(mc[1],{roughness:.5})); body.position.y = .065;
+    const hd = new THREE.Mesh(new THREE.TorusGeometry(.04,.012,8,14), M(mc[1],{roughness:.5}));
+    hd.position.set(.08,.065,0);
+    mg.add(body,hd); mg.rotation.y = .4+i*.9;
+    mugsG.add(mg);
+  });
+  cabG.add(mugsG);
+  // portas com puxadores
+  cabDoorL = G(-.7,.92,.31);
+  { const p = B(.64,1.42,.05,M(0x7a653f)); p.position.x = .32;
+    const hnd = B(.025,.14,.03,M(0x3a3328)); hnd.position.set(.58,0,.05);
+    cabDoorL.add(p,hnd); }
+  cabDoorR = G(.7,.92,.31);
+  { const p = B(.64,1.42,.05,M(0x7a653f)); p.position.x = -.32;
+    const hnd = B(.025,.14,.03,M(0x3a3328)); hnd.position.set(-.58,0,.05);
+    cabDoorR.add(p,hnd); }
+  cabG.add(cabDoorL,cabDoorR);
+}
+scene.add(cabG);
+
+const shelfG = G(-12.24,0,.6);
+{
+  const board = B(.34,.05,1.25,M(0x9a7a5a)); board.position.y = 1.15; shelfG.add(board);
+  [-.45,.45].forEach(z=>{
+    const br = B(.26,.05,.06,M(0x4c4640)); br.position.set(0,1.09,z);
+    const bv = B(.05,.2,.06,M(0x4c4640)); bv.position.set(-.12,1.0,z);
+    shelfG.add(br,bv);
+  });
+}
+scene.add(shelfG);
+
+const stoveG = G(-9.5,0,2.55);
+{
+  const metal = M(0x5a5d63,{roughness:.45,metalness:.35});
+  const dark  = M(0x2b2d31,{roughness:.5});
+  const body = B(1.0,.78,.62,metal); body.position.y = .39; stoveG.add(body);
+  const plate = B(1.04,.05,.66,M(0x44464c,{roughness:.4,metalness:.4})); plate.position.y = .815; stoveG.add(plate);
+  [[-.24,-.15],[.24,-.15],[-.24,.15],[.24,.15]].forEach(p=>{
+    const b = CYL(.105,.105,.03,dark,16); b.position.set(p[0],.85,p[1]); stoveG.add(b);
+  });
+  const oven = B(.82,.42,.05,M(0x4a4d53,{roughness:.4,metalness:.3})); oven.position.set(0,.34,-.34); stoveG.add(oven);
+  const win  = B(.58,.22,.02,M(0x17181c,{roughness:.2})); win.position.set(0,.36,-.37); stoveG.add(win);
+  const bar  = CYL(.025,.025,.8,M(0x8d9097,{metalness:.6,roughness:.3})); bar.rotation.z = Math.PI/2; bar.position.set(0,.6,-.39); stoveG.add(bar);
+  [-.3,-.1,.1,.3].forEach(x=>{
+    const k = CYL(.032,.032,.04,dark,10); k.rotation.x = Math.PI/2; k.position.set(x,.72,-.345); stoveG.add(k);
+  });
+}
+scene.add(stoveG);
+
+// ── QUARTO: cama de verdade, guarda-roupa, cômoda com gaveta e chave ─────────
+const bedG = G(1.8,0,-11.15);
+{
+  [[-.62,-1.06],[.62,-1.06],[-.62,1.06],[.62,1.06]].forEach(p=>{
+    const leg = B(.1,.24,.1,M(0x4e3a2a)); leg.position.set(p[0],.12,p[1]); bedG.add(leg);
+  });
+  const frame = B(1.36,.22,2.26,M(0x6a4f38)); frame.position.y = .3; bedG.add(frame);
+  const head  = B(1.36,.78,.1,M(0x6a4f38)); head.position.set(0,.62,-1.13); bedG.add(head);
+  const matt  = B(1.22,.2,2.04,M(0xe8e2d2,{roughness:.95})); matt.position.y = .5; bedG.add(matt);
+  const pil   = B(.82,.13,.42,M(0xf2eee2,{roughness:.95})); pil.position.set(0,.66,-.78); pil.rotation.y = .05; bedG.add(pil);
+  const blank = B(1.28,.12,1.26,M(0x8a5a6a,{roughness:.95})); blank.position.set(0,.61,.4); bedG.add(blank);
+  const fold  = B(1.28,.03,.2,M(0xa87a8a,{roughness:.95})); fold.position.set(0,.68,-.22); bedG.add(fold);
+}
+scene.add(bedG);
+
+const wardG = G(-2.62,0,-9.0);
+{
+  const body = B(.56,1.86,1.26,M(0x5a4a3a)); body.position.y = .97; wardG.add(body);
+  [-.32,.32].forEach(z=>{
+    const d = B(.04,1.7,.6,M(0x6b5947)); d.position.set(.29,.97,z); wardG.add(d);
+  });
+  [-.06,.06].forEach(z=>{
+    const h = CYL(.018,.018,.16,M(0x3a3328)); h.position.set(.32,.97,z); wardG.add(h);
+  });
+  const crown = B(.62,.07,1.34,M(0x4e3a2a)); crown.position.y = 1.93; wardG.add(crown);
+  [[-.2,-.55],[.2,-.55],[-.2,.55],[.2,.55]].forEach(p=>{
+    const f = B(.08,.08,.08,M(0x3a2c20)); f.position.set(p[0],.04,p[1]); wardG.add(f);
+  });
+}
+scene.add(wardG);
+
+const dresserG = G(-1.2,0,-12.0);
+let dresserDrawer, keyG, keyHeld = false;
+{
+  const wood = 0x7a5a6a, woodD = 0x5e4452;
+  const top  = B(1.56,.06,.74,M(woodD)); top.position.y = 1.03; dresserG.add(top);
+  [-.75,.75].forEach(x=>{
+    const s = B(.06,.94,.72,M(wood)); s.position.set(x,.52,0); dresserG.add(s);
+  });
+  const back = B(1.5,.94,.05,M(woodD)); back.position.set(0,.52,-.34); dresserG.add(back);
+  const base = B(1.5,.1,.68,M(woodD)); base.position.y = .06; dresserG.add(base);
+  // gaveta de baixo (decorativa)
+  const lower = B(1.38,.4,.05,M(0x8a6a7a)); lower.position.set(0,.3,.35); dresserG.add(lower);
+  [-.3,.3].forEach(x=>{
+    const k = SPH(.035,M(0xd8b04a,{metalness:.6,roughness:.4})); k.position.set(x,.3,.39); dresserG.add(k);
+  });
+  // gaveta de cima (abre de verdade, com a chave dentro)
+  dresserDrawer = G(0,.74,0);
+  const front = B(1.38,.32,.05,M(0x8a6a7a)); front.position.set(0,0,.35);
+  const knob  = SPH(.035,M(0xd8b04a,{metalness:.6,roughness:.4})); knob.position.set(0,0,.39);
+  const tray  = B(1.22,.03,.58,M(0x4a3a44)); tray.position.set(0,-.13,.02);
+  const sideA = B(.03,.14,.58,M(0x4a3a44)); sideA.position.set(-.6,-.06,.02);
+  const sideB = B(.03,.14,.58,M(0x4a3a44)); sideB.position.set(.6,-.06,.02);
+  const backT = B(1.2,.14,.03,M(0x4a3a44)); backT.position.set(0,-.06,-.26);
+  dresserDrawer.add(front,knob,tray,sideA,sideB,backT);
+  dresserG.add(dresserDrawer);
+  // a chave dourada, deitada na gaveta
+  keyG = G(0,-.08,.12);
+  const gold = new THREE.MeshStandardMaterial({color:0xefc23a, metalness:.7, roughness:.3, emissive:0x6a5400, emissiveIntensity:.45});
+  const kHead = new THREE.Mesh(new THREE.TorusGeometry(.07,.025,10,20), gold); kHead.position.x = -.14;
+  const kShaft = new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,.3,10), gold); kShaft.rotation.z = Math.PI/2; kShaft.position.x = .04;
+  const kT1 = B(.04,.05,.018,gold); kT1.position.set(.16,-.05,0);
+  const kT2 = B(.03,.04,.018,gold); kT2.position.set(.1,-.045,0);
+  [kHead,kShaft,kT1,kT2].forEach(o=>{ o.castShadow = true; keyG.add(o); });
+  keyG.rotation.set(-Math.PI/2,0,0);
+  dresserDrawer.add(keyG);
+}
+scene.add(dresserG);
+
+// ── ESCRITÓRIO: cofre com teclado, gaveta trancada, escrivaninha e livro ─────
+const safeG = G(9.5,0,-2.45);
+let safeHinge, safeLight, screenMat, goldG;
+{
+  const steel  = M(0x9aa0a8,{roughness:.4,metalness:.5});
+  const steelD = M(0x787e86,{roughness:.45,metalness:.5});
+  [[-.48,-.38],[.48,-.38],[-.48,.38],[.48,.38]].forEach(p=>{
+    const f = B(.12,.1,.12,M(0x2b2d31)); f.position.set(p[0],.05,p[1]); safeG.add(f);
+  });
+  const bot = B(1.2,.08,.96,steelD); bot.position.y = .14; safeG.add(bot);
+  const top = B(1.2,.08,.96,steelD); top.position.y = 1.32; safeG.add(top);
+  [-.56,.56].forEach(x=>{
+    const s = B(.08,1.1,.96,steel); s.position.set(x,.73,0); safeG.add(s);
+  });
+  const back = B(1.2,1.1,.08,steel); back.position.set(0,.73,-.44); safeG.add(back);
+  const inner = B(1.0,1.0,.02,M(0x1c1c20)); inner.position.set(0,.73,-.41); safeG.add(inner);
+  // barras de ouro lá dentro (só aparecem quando a porta abre)
+  goldG = G(0,0,0);
+  const goldMat = M(0xd9b343,{metalness:.75,roughness:.25,emissive:0x553c00,emissiveIntensity:.3});
+  const g1 = B(.34,.11,.16,goldMat); g1.position.set(0,.24,-.12);
+  const g2 = B(.34,.11,.16,goldMat); g2.position.set(-.05,.35,-.1); g2.rotation.y = .3;
+  goldG.add(g1,g2); safeG.add(goldG);
+  // porta com teclado numerado, visor e maçaneta
+  safeHinge = G(-.56,.73,.45);
+  const door = B(1.1,1.06,.1,steel); door.position.x = .55;
+  const pad  = B(.36,.5,.03,M(0x2b2e33,{roughness:.5})); pad.position.set(.82,.02,.07);
+  screenMat = new THREE.MeshStandardMaterial({color:0x07140a, emissive:0x2dc456, emissiveIntensity:.8, roughness:.4});
+  const scr  = new THREE.Mesh(new THREE.BoxGeometry(.28,.1,.02), screenMat); scr.position.set(.82,.2,.09);
+  safeHinge.add(door,pad,scr);
+  const btnMat = M(0x52565c,{roughness:.4});
+  for(let r=0;r<4;r++) for(let c=0;c<3;c++){
+    const b = B(.07,.07,.02,btnMat);
+    b.position.set(.72+c*.1, .08-r*.1, .09);
+    safeHinge.add(b);
+  }
+  const handle = CYL(.03,.03,.34,M(0xc4c8ce,{metalness:.7,roughness:.25})); handle.position.set(.28,0,.1);
+  safeHinge.add(handle);
+  safeG.add(safeHinge);
+  // luz quente do interior
+  safeLight = new THREE.PointLight(0xffc966, 0, 3.5);
+  safeLight.position.set(0,.9,.2);
+  safeG.add(safeLight);
+}
+scene.add(safeG);
+
+const fileG = G(10.4,0,2.55);
+let fileDrawer, keyplateMat, paper9;
+{
+  const wood = 0x6a5a4a, woodD = 0x4e4234;
+  const top = B(1.34,.06,.78,M(woodD)); top.position.y = 1.06; fileG.add(top);
+  [-.64,.64].forEach(x=>{
+    const s = B(.06,.95,.76,M(wood)); s.position.set(x,.53,0); fileG.add(s);
+  });
+  const back = B(1.28,.95,.05,M(woodD)); back.position.set(0,.53,.34); fileG.add(back);
+  const base = B(1.28,.12,.72,M(woodD)); base.position.y = .07; fileG.add(base);
+  fileDrawer = G(0,.6,0);
+  const front = B(1.2,.6,.05,M(0x7a6a4f)); front.position.set(0,0,-.38);
+  const handle = B(.3,.05,.04,M(0x3a3328)); handle.position.set(0,.14,-.42);
+  keyplateMat = M(0x8d7a3a,{metalness:.6,roughness:.35});
+  const plate = CYL(.06,.06,.02,keyplateMat,14); plate.rotation.x = Math.PI/2; plate.position.set(0,-.06,-.415);
+  const hole = B(.02,.06,.01,M(0x16140e)); hole.position.set(0,-.06,-.425);
+  const tray = B(1.1,.03,.6,M(0x3e3528)); tray.position.set(0,-.26,-.05);
+  fileDrawer.add(front,handle,plate,hole,tray);
+  // o papel com o 9 (3º dígito) dentro da gaveta
+  paper9 = new THREE.Mesh(new THREE.PlaneGeometry(.32,.32),
+    new THREE.MeshStandardMaterial({map:canvasTexture(drawDigit('9')), roughness:.95, side:THREE.DoubleSide}));
+  paper9.rotation.x = -Math.PI/2; paper9.rotation.z = .25;
+  paper9.position.set(0,-.235,-.05);
+  fileDrawer.add(paper9);
+  fileG.add(fileDrawer);
+}
+scene.add(fileG);
+
+const deskG = G(7.4,0,-2.45);
+{
+  const top = B(1.7,.07,.85,M(0x7a6a4a)); top.position.y = .78; deskG.add(top);
+  [-.78,.78].forEach(x=>{
+    const s = B(.07,.72,.8,M(0x655640)); s.position.set(x,.39,0); deskG.add(s);
+  });
+  const back = B(1.55,.45,.05,M(0x655640)); back.position.set(0,.55,-.36); deskG.add(back);
+  const drawer = B(.5,.16,.04,M(0x55482f)); drawer.position.set(.45,.66,.4); deskG.add(drawer);
+  const dk = SPH(.025,M(0x3a3328)); dk.position.set(.45,.66,.43); deskG.add(dk);
+}
+scene.add(deskG);
+
+const bookG = G(7.72,.815,-2.32);
+{
+  const c1 = B(.34,.02,.46,M(0x4a3a5a)); c1.position.y = .01;
+  const pg = B(.31,.06,.42,M(0xe8e2cf,{roughness:.95})); pg.position.y = .05;
+  const c2 = B(.34,.02,.46,M(0x4a3a5a)); c2.position.y = .09;
+  bookG.add(c1,pg,c2);
+  bookG.rotation.y = .5;
+}
+scene.add(bookG);
+
+// Mapa nome-do-jogo → mesh (para pulsos de destaque)
+const OBJ_MESH = {
+  sala:       {mesa:mesaG, bilhete:noteG, quadro_antigo:oldPaintG},
+  cozinha:    {armario:cabG, prateleira:shelfG, fogao:stoveG},
+  quarto:     {cama:bedG, guarda_roupa:wardG, gaveta:dresserG},
+  escritorio: {cofre:safeG, quadro:offPaintG, gaveta:fileG, escrivaninha:deskG, livro:bookG},
+};
+
+// ── AGENTE (agora com pernas, braços, olhos e boné) ──────────────────────────
+const agent = new THREE.Group();
+const parts = new THREE.Group();
+agent.add(parts);
+const ARM_Z = .18;
+let legL, legR, armL, armR, headG, eyes = [];
+{
+  const matPants = M(0x46566b,{roughness:.7}), matShirt = M(0x4f8563,{roughness:.7});
+  const matSkin  = M(0xe7b78a,{roughness:.6}), matShoe  = M(0x3a3631,{roughness:.5});
+  const matHat   = M(0xc4a93d,{roughness:.6});
+  function makeLeg(side){
+    const piv = G(.13*side,.52,0);
+    const th = CYL(.085,.075,.46,matPants); th.position.y = -.23;
+    const shoe = B(.15,.09,.26,matShoe); shoe.position.set(0,-.5,.045);
+    piv.add(th,shoe); parts.add(piv); return piv;
+  }
+  legL = makeLeg(-1); legR = makeLeg(1);
+  const torso = CYL(.23,.29,.62,matShirt,16); torso.position.y = .83; parts.add(torso);
+  const belt  = CYL(.285,.29,.09,matPants,16); belt.position.y = .56; parts.add(belt);
+  function makeArm(side){
+    const piv = G(.31*side,1.06,0);
+    const up = CYL(.06,.055,.42,matShirt,10); up.position.y = -.2;
+    const hand = SPH(.07,matSkin,10); hand.position.y = -.44;
+    piv.add(up,hand); piv.rotation.z = ARM_Z*side;
+    parts.add(piv); return piv;
+  }
+  armL = makeArm(-1); armR = makeArm(1);
+  headG = G(0,1.34,0); parts.add(headG);
+  const skull = SPH(.235,matSkin,18); headG.add(skull);
+  const eyeMat = M(0xffffff,{roughness:.3}), pupilMat = M(0x222222,{roughness:.3});
+  [-1,1].forEach(sd=>{
+    const e = SPH(.05,eyeMat,10);   e.position.set(.082*sd,.04,.2);
+    const p = SPH(.024,pupilMat,8); p.position.set(.082*sd,.04,.243);
+    headG.add(e,p); eyes.push(e,p);
+  });
+  const mouth = B(.07,.018,.02,M(0x7a4a3a)); mouth.position.set(0,-.075,.225); headG.add(mouth);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(.245,16,12,0,Math.PI*2,0,Math.PI/2.4), matHat);
+  cap.position.y = .06; cap.castShadow = true; headG.add(cap);
+  const brim = B(.3,.03,.18,matHat); brim.position.set(0,.1,.24); headG.add(brim);
+}
+agent.position.set(0,0,1.2);
 scene.add(agent);
+
+// ── SISTEMAS DE ANIMAÇÃO (tweens, pulsos, shakes, confete) ───────────────────
+let tNow = 0;
+const tweens = [];
+function tween(o,k,to,dur,delay){
+  tweens.push({o,k,to,from:null,t0:tNow+(delay||0),dur:dur||.7});
+}
+function easeC(c){ return c<.5 ? 4*c*c*c : 1-Math.pow(-2*c+2,3)/2; }
+function updateTweens(){
+  for(let i=tweens.length-1;i>=0;i--){
+    const t = tweens[i];
+    if(tNow < t.t0) continue;
+    if(t.from === null) t.from = t.o[t.k];
+    const k = (tNow-t.t0)/t.dur;
+    if(k>=1){ t.o[t.k] = t.to; tweens.splice(i,1); }
+    else t.o[t.k] = t.from + (t.to-t.from)*easeC(k);
+  }
+}
+
+const pulses = [];
+function pulse(obj){
+  obj.traverse(o=>{
+    if(o.isMesh && o.material && o.material.emissive && o.material.emissive.getHex()===0){
+      pulses.push({m:o.material, t0:tNow});
+    }
+  });
+}
+function updatePulses(){
+  for(let i=pulses.length-1;i>=0;i--){
+    const p = pulses[i], k = (tNow-p.t0)/.9;
+    if(k>=1){ p.m.emissive.setHex(0); p.m.emissiveIntensity = 1; pulses.splice(i,1); }
+    else { p.m.emissive.setHex(0x5a8a5a); p.m.emissiveIntensity = .7*(1-k); }
+  }
+}
+
+const glowed = [];
+function glow(obj){
+  obj.traverse(o=>{
+    if(o.isMesh && o.material && o.material.emissive && o.material.emissive.getHex()===0){
+      o.material.emissive.setHex(0x33502c);
+      o.material.emissiveIntensity = .5;
+      glowed.push(o.material);
+    }
+  });
+}
+
+const shakes = [];
+function shake(obj){ shakes.push({o:obj, t0:tNow, dur:.55, base:obj.position.x}); }
+function updateShakes(){
+  for(let i=shakes.length-1;i>=0;i--){
+    const s = shakes[i], k = (tNow-s.t0)/s.dur;
+    if(k>=1){ s.o.position.x = s.base; shakes.splice(i,1); }
+    else s.o.position.x = s.base + Math.sin((tNow-s.t0)*55)*.05*(1-k);
+  }
+}
+
+const confs = [];
+function burstConfetti(x,y,z){
+  const cols = [0xf2c14e,0x7da67d,0xd96a6a,0x6a9ad9,0xd9c16a,0xb87dd9];
+  for(let i=0;i<90;i++){
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(.1,.07),
+      new THREE.MeshBasicMaterial({color:cols[i%6], side:THREE.DoubleSide, transparent:true}));
+    m.position.set(x+(Math.random()-.5)*.6, y+Math.random()*.4, z+(Math.random()-.5)*.6);
+    m.userData.v  = new THREE.Vector3((Math.random()-.5)*3.4, 2.4+Math.random()*2.8, (Math.random()-.5)*3.4);
+    m.userData.rv = (Math.random()-.5)*9;
+    m.userData.born = tNow;
+    m.rotation.set(Math.random()*3, Math.random()*3, 0);
+    scene.add(m); confs.push(m);
+  }
+}
+function updateConfetti(dt){
+  for(let i=confs.length-1;i>=0;i--){
+    const m = confs[i], age = tNow-m.userData.born;
+    m.userData.v.y -= 6*dt;
+    m.position.addScaledVector(m.userData.v, dt);
+    if(m.position.y < .03){ m.position.y = .03; m.userData.v.set(0,0,0); }
+    m.rotation.x += m.userData.rv*dt;
+    if(age > 2.6) m.material.opacity = Math.max(0, 1-(age-2.6)/1.4);
+    if(age > 4){ scene.remove(m); m.geometry.dispose(); m.material.dispose(); confs.splice(i,1); }
+  }
+}
+
+// ── CAMINHADA (waypoints pelas portas, nada de atravessar parede) ────────────
+const walker = {pts:[], arrive:null};
+let isMoving = false, walkPhase = 0, faceTarget = null;
+const SPEED = 3.1;
+
+function roomFromPos(p){
+  if(p.x < -6.0) return 'cozinha';
+  if(p.x >  6.0) return 'escritorio';
+  if(p.z < -6.0) return 'quarto';
+  return 'sala';
+}
+function d2(a,b){ return Math.hypot(a[0]-b[0], a[1]-b[1]); }
+
+function walkTo(stand, look, onArrive){
+  const startRoom = roomFromPos(agent.position);
+  const endRoom   = roomFromPos({x:stand[0], z:stand[1]});
+  let pts = [];
+  if(startRoom !== endRoom){
+    if(startRoom !== 'sala') pts = pts.concat(DOOR_CHAIN[startRoom].map(p=>p.slice()));
+    if(endRoom   !== 'sala') pts = pts.concat(DOOR_CHAIN[endRoom].slice().reverse().map(p=>p.slice()));
+  }
+  pts.push(stand.slice());
+  // descarta waypoints que ficariam "para trás" do agente
+  const ap = [agent.position.x, agent.position.z];
+  while(pts.length>1 && d2(ap,pts[1]) <= d2(pts[0],pts[1])) pts.shift();
+  walker.pts = pts.map(p=>new THREE.Vector3(p[0],0,p[1]));
+  walker.arrive = {look:look, fn:onArrive};
+  faceTarget = null;
+}
+
+function lerpAngle(a,b,t){
+  let d = b-a;
+  while(d >  Math.PI) d -= 2*Math.PI;
+  while(d < -Math.PI) d += 2*Math.PI;
+  return a + d*t;
+}
+
+function updateWalker(dt){
+  if(!walker.pts.length){ isMoving = false; return; }
+  isMoving = true;
+  const next = walker.pts[0];
+  const dx = next.x-agent.position.x, dz = next.z-agent.position.z;
+  const dist = Math.hypot(dx,dz);
+  const step = SPEED*dt;
+  if(dist > .001) agent.rotation.y = lerpAngle(agent.rotation.y, Math.atan2(dx,dz), Math.min(1,dt*10));
+  if(dist <= step){
+    agent.position.x = next.x; agent.position.z = next.z;
+    walker.pts.shift();
+    if(!walker.pts.length){
+      isMoving = false;
+      const a = walker.arrive; walker.arrive = null;
+      if(a){
+        if(a.look) faceTarget = Math.atan2(a.look[0]-agent.position.x, a.look[1]-agent.position.z);
+        if(a.fn) a.fn();
+      }
+    }
+  } else {
+    agent.position.x += dx/dist*step;
+    agent.position.z += dz/dist*step;
+  }
+  walkPhase += step*4.2;
+}
+
+// ── GESTOS DO AGENTE ─────────────────────────────────────────────────────────
+let gest = null;
+function gesture(name,dur){ gest = {name:name, t0:tNow, dur:dur||1.2}; }
+
+function updateAgentAnim(dt){
+  const damp = Math.min(1, dt*12);
+  let lt=0, rt=0, la=0, ra=0;
+  if(isMoving){
+    const sw = Math.sin(walkPhase);
+    lt = sw*.62; rt = -sw*.62; la = -sw*.5; ra = sw*.5;
+    parts.position.y += (Math.abs(Math.cos(walkPhase))*.06 - parts.position.y)*damp;
+  } else {
+    parts.position.y += (Math.sin(tNow*2)*.012+.012 - parts.position.y)*damp;
+  }
+  legL.rotation.x += (lt-legL.rotation.x)*damp;
+  legR.rotation.x += (rt-legR.rotation.x)*damp;
+  armL.rotation.x += (la-armL.rotation.x)*damp;
+  armR.rotation.x += (ra-armR.rotation.x)*damp;
+  armL.rotation.z += (-ARM_Z-armL.rotation.z)*damp;
+  armR.rotation.z += ( ARM_Z-armR.rotation.z)*damp;
+
+  let hy=0, hx=0, hz=0;
+  if(!isMoving && !gest) hy = Math.sin(tNow*.7)*.14;   // olhadinha casual
+
+  if(gest){
+    const k = (tNow-gest.t0)/gest.dur;
+    if(k>=1){ gest = null; agent.position.y = 0; }
+    else {
+      const env = Math.sin(Math.PI*Math.min(Math.max(k,0),1));
+      if(gest.name==='reach'){ armR.rotation.x = -1.5*env; }
+      else if(gest.name==='confused'){ armR.rotation.x = -2.7*env; armR.rotation.z = ARM_Z+.35*env; hz = .3*env; }
+      else if(gest.name==='look'){ hy = Math.sin(k*Math.PI*2)*.85; }
+      else if(gest.name==='check'){ armL.rotation.x = -1.1*env; armR.rotation.x = -1.1*env; hx = .45*env; }
+      else if(gest.name==='celebrate'){
+        armL.rotation.x = -2.9*env; armR.rotation.x = -2.9*env;
+        agent.position.y = Math.abs(Math.sin(k*Math.PI*5))*.32*env;
+        hy = Math.sin(k*Math.PI*6)*.2;
+      }
+    }
+  }
+  if(!gest || gest.name!=='celebrate') agent.position.y += (0-agent.position.y)*damp;
+
+  headG.rotation.y += (hy-headG.rotation.y)*damp;
+  headG.rotation.x += (hx-headG.rotation.x)*damp;
+  headG.rotation.z += (hz-headG.rotation.z)*damp;
+
+  // piscar
+  const bk = (tNow%3.4) < .13 ? .12 : 1;
+  eyes.forEach(e=>{ e.scale.y += (bk-e.scale.y)*Math.min(1,dt*25); });
+
+  // virar de frente para o objeto após chegar
+  if(!isMoving && faceTarget!==null){
+    agent.rotation.y = lerpAngle(agent.rotation.y, faceTarget, Math.min(1,dt*8));
+    let d = faceTarget-agent.rotation.y;
+    while(d >  Math.PI) d -= 2*Math.PI;
+    while(d < -Math.PI) d += 2*Math.PI;
+    if(Math.abs(d) < .04) faceTarget = null;
+  }
+}
+
+// ── EFEITOS DOS MARCOS DO JOGO ───────────────────────────────────────────────
+const ST = {armario:false, gavQuarto:false, chave:false, bilhete:false,
+            exBilhete:false, qAntigo:false, qEscr:false, destranca:false,
+            gavEscr:false, cofre:false};
+
+function fxArmario(){
+  tween(cabDoorL.rotation,'y',-1.9,.9);
+  tween(cabDoorR.rotation,'y', 1.9,.9);
+  glow(mugsG);
+}
+function fxGavetaQuarto(){ tween(dresserDrawer.position,'z',.52,.8); }
+function fxChave(){
+  keyG.parent.remove(keyG);
+  agent.add(keyG);
+  keyG.position.set(.4,1.05,.18);
+  keyG.rotation.set(0,0,0);
+  keyHeld = true;
+}
+function fxBilhete(){ noteG.visible = false; }
+function fxExBilhete(){ glow(noteG); }
+function fxQuadroAntigo(){ tween(oldPaintG.userData.tilt.rotation,'z',-.22,.7); glow(oldPaintG); }
+function fxQuadroEscr(){ tween(offPaintG.userData.tilt.rotation,'z',.35,.7); glow(offPaintG); }
+function fxDestranca(){
+  keyplateMat.emissive.setHex(0x2dbb4a);
+  keyplateMat.emissiveIntensity = .8;
+  glowed.push(keyplateMat);
+}
+function fxGavetaEscr(){ tween(fileDrawer.position,'z',-.62,.8); }
+function fxCofre(){
+  tween(safeHinge.rotation,'y',-2.0,1.2,.2);
+  tween(safeLight,'intensity',1.3,1.2,.6);
+  glow(goldG);
+  burstConfetti(9.5,1.8,-1.5);
+  gesture('celebrate',2.6);
+}
+function fxCodigoErrado(){
+  shake(safeG);
+  screenMat.emissive.setHex(0xff4040);
+  setTimeout(()=>{ screenMat.emissive.setHex(0x2dc456); }, 650);
+}
+
+function stSet(k,v,fx){ if(v && !ST[k]){ ST[k] = true; fx(); } }
+function syncStates(s){
+  const ms  = (s.milestones||[]).map(m=>m.id);
+  const va  = (s.valid_actions||[]).join('|');
+  const inv = s.inventory||[];
+  stSet('armario',   ms.includes('digito1_canecas') || (s.room==='cozinha' && !va.includes('abrir armario')), fxArmario);
+  stSet('gavQuarto', ms.includes('pegou_chave')     || (s.room==='quarto'  && !va.includes('abrir gaveta')),  fxGavetaQuarto);
+  stSet('chave',     inv.includes('chave'),             fxChave);
+  stSet('bilhete',   inv.includes('bilhete'),           fxBilhete);
+  stSet('exBilhete', ms.includes('dica_bilhete'),       fxExBilhete);
+  stSet('qAntigo',   ms.includes('dica_quadro_antigo'), fxQuadroAntigo);
+  stSet('qEscr',     ms.includes('digito2_quadro'),     fxQuadroEscr);
+  stSet('destranca', ms.includes('destrancou_gaveta'),  fxDestranca);
+  stSet('gavEscr',   ms.includes('digito3_papel'),      fxGavetaEscr);
+  stSet('cofre',     !!s.terminated,                    fxCofre);
+}
+
+// ── INTERPRETA A ÚLTIMA AÇÃO DA IA → anda até o objeto ───────────────────────
+function handleAction(s){
+  let raw = (s.last_action||'').toLowerCase().trim()
+              .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+              .replace(/_/g,' ').replace(/\s+/g,' ');
+  if(!raw) return;
+  const room = s.room;
+
+  if(/^(ir|go|vai|va) /.test(raw)){
+    walkTo(ROOM_STAND[room]||[0,0], null, null);
+    return;
+  }
+  if(raw==='olhar' || raw==='look' || raw==='l'){ gesture('look',1.6); return; }
+  if(raw==='inventario' || raw==='inventory' || raw==='i'){ gesture('check',1.4); return; }
+  if(/^(digitar|enter|inserir|codigo|digito|colocar codigo)/.test(raw)){
+    const sp = (OBJ_SPOTS[room]||{}).cofre;
+    if(sp){
+      const wrong = !s.terminated;
+      walkTo(sp.stand, sp.look, ()=>{
+        if(wrong){ gesture('reach',1.0); fxCodigoErrado(); }
+        else gesture('celebrate',2.6);
+      });
+    } else gesture('confused',1.4);
+    return;
+  }
+  // procura um objeto do cômodo citado na ação
+  const spots = OBJ_SPOTS[room]||{};
+  const names = Object.keys(spots).sort((a,b)=>b.length-a.length);
+  let found = null;
+  for(const n of names){
+    if(raw.includes(n.replace(/_/g,' '))){ found = n; break; }
+  }
+  if(!found && raw.includes('chave') && room==='quarto') found = 'gaveta';
+  if(found){
+    const sp = spots[found];
+    const mesh = OBJ_MESH[room] && OBJ_MESH[room][found];
+    walkTo(sp.stand, sp.look, ()=>{
+      gesture('reach',1.0);
+      if(mesh) pulse(mesh);
+    });
+  } else {
+    gesture('confused',1.5);   // coça a cabeça: ação não reconhecida
+  }
+}
 
 // ── BALÃO DE PENSAMENTO ──────────────────────────────────────────────────────
 const bubble  = document.getElementById('bubble');
@@ -488,7 +1258,7 @@ document.getElementById('font-down').onclick = ()=>{ bubbleFontSize=Math.max(FON
 function updateBubble(){
   if(!currentThought){ bubble.style.display='none'; return; }
   agent.getWorldPosition(bubbleV);
-  bubbleV.y += 2.2;
+  bubbleV.y += 2.3;
   const proj = bubbleV.project(camera);
   const x = ( proj.x*.5+.5)*innerWidth;
   const y = (-proj.y*.5+.5)*innerHeight;
@@ -504,31 +1274,29 @@ function updateBubble(){
   }
 }
 
-// ── ANIMAÇÃO ─────────────────────────────────────────────────────────────────
-let animTarget = null;
-function animateTo(room){
-  const p = ROOM_POS[room];
-  if(p) animTarget = new THREE.Vector3(p[0],0,p[1]);
-}
-
 // ── RENDER LOOP ───────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
 (function loop(){
   requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), .05);
+  tNow = clock.elapsedTime;
   controls.update();
-  if(animTarget){
-    agent.position.lerp(animTarget,.07);
-    if(agent.position.distanceTo(animTarget)<.2) animTarget=null;
-  }
-  if(key.visible){
-    key.position.set(agent.position.x, 1.7, agent.position.z);
-    key.rotation.y += .03;
+  updateWalker(dt);
+  updateAgentAnim(dt);
+  updateTweens();
+  updatePulses();
+  updateShakes();
+  updateConfetti(dt);
+  if(keyHeld){
+    keyG.rotation.y += dt*2.5;
+    keyG.position.y = 1.05 + Math.sin(tNow*2.2)*.05;
   }
   updateBubble();
   renderer.render(scene, camera);
 })();
 
 // ── POLLING ───────────────────────────────────────────────────────────────────
-let lastRoom='', gameRunning=false;
+let lastRoom = '', gameRunning = false, lastSteps = -1, winShown = false;
 
 async function poll(){
   try{
@@ -537,9 +1305,14 @@ async function poll(){
     const banner = document.getElementById('status-banner');
 
     if(s.status==='playing' && s.room){
-      if(!gameRunning){ gameRunning=true; banner.className='playing'; banner.textContent='▶ IA explorando (V2)...'; }
+      // partida nova começou sem apertar reset? restaura a cena
+      if(lastSteps > 0 && s.steps < lastSteps) resetScene();
 
-      if(s.room !== lastRoom){ animateTo(s.room); lastRoom=s.room; }
+      if(!gameRunning){
+        gameRunning = true;
+        banner.className = 'playing';
+        banner.textContent = '▶ IA explorando (V2'+(s.modo ? ' · modo '+s.modo : '')+')...';
+      }
 
       if(s.thought && s.thought !== currentThought){
         currentThought = s.thought;
@@ -547,38 +1320,28 @@ async function poll(){
         bubble._timer = setTimeout(()=>{ currentThought=''; bubble.style.display='none'; }, 6000);
       }
 
-      // Infere estado dos objetos a partir de valid_actions (que o watch ainda recebe)
-      const va = (s.valid_actions||[]).join(' ');
+      syncStates(s);
 
-      // Armário da cozinha
-      if(!va.includes('abrir armario')){
-        cabDoor.rotation.y=-0.9; cabDoor.position.x=-10.05; cabDoor.position.z=-2.0;
-        hl(cabinet);
+      if(s.steps !== lastSteps){
+        lastSteps = s.steps;
+        if(s.last_action !== undefined && s.last_action !== ''){
+          handleAction(s);
+        } else if(s.room !== lastRoom){
+          walkTo(ROOM_STAND[s.room]||[0,0], null, null);   // servidor antigo, sem last_action
+        }
       }
+      lastRoom = s.room;
 
-      // Chave
-      if(s.inventory && s.inventory.includes('chave')){
-        key.visible=true;
-        hl(dresser);
-        dreDraw.position.z=-10.9;
-      }
-
-      // Quadro do escritório examinado (pintado de highlight quando agente está no escritório e já examinou)
-      // Usamos: se NOT in valid_actions E agente está no escritório → já examinou
-      if(s.room==='escritorio' && !va.includes('examinar quadro')){ hl(painting); }
-
-      // Gaveta trancada do escritório (destrancada quando "usar chave em gaveta" some da lista
-      // e a gaveta no escritório pode ser aberta — "abrir gaveta" aparece no escritório)
-      if(s.room==='escritorio' && va.includes('abrir gaveta')){ lockFace.position.z=2.55; hl(lockDraw); }
-
-      // Vitória
-      if(s.terminated){
-        safeDoor.rotation.y=-1.1; safeDoor.position.x=8.95; safeDoor.position.z=-1.45;
-        safe.material.color=new THREE.Color(0x5a8a5a);
-        currentThought='';
-        document.getElementById('win').classList.add('show');
-        document.getElementById('win-txt').textContent =
-          'passos: '+s.steps+' · score: '+s.score+' · god messages: '+(s.god_message_count||0)+' ⚡';
+      if(s.terminated && !winShown){
+        winShown = true;
+        currentThought = '';
+        const passos = s.steps, score = s.score, godN = s.god_message_count||0;
+        setTimeout(()=>{
+          if(!winShown) return;   // reset aconteceu nesse meio tempo
+          document.getElementById('win').classList.add('show');
+          document.getElementById('win-txt').textContent =
+            'passos: '+passos+' · score: '+score+' · god messages: '+godN+' ⚡';
+        }, 2800);
       }
 
       // HUD
@@ -629,28 +1392,48 @@ document.getElementById('god-input').addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendGodMessage(); }
 });
 
-// ── RESET ─────────────────────────────────────────────────────────────────────
+// ── RESET DA CENA ─────────────────────────────────────────────────────────────
+function resetScene(){
+  tweens.length = 0; shakes.length = 0;
+  pulses.forEach(p=>{ p.m.emissive.setHex(0); p.m.emissiveIntensity = 1; });
+  pulses.length = 0;
+  glowed.forEach(m=>{ m.emissive.setHex(0); m.emissiveIntensity = 1; });
+  glowed.length = 0;
+  confs.forEach(m=>{ scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  confs.length = 0;
+
+  cabDoorL.rotation.y = 0; cabDoorR.rotation.y = 0;
+  dresserDrawer.position.z = 0;
+  fileDrawer.position.z = 0;
+  oldPaintG.userData.tilt.rotation.z = 0;
+  offPaintG.userData.tilt.rotation.z = 0;
+  safeHinge.rotation.y = 0;
+  safeLight.intensity = 0;
+  screenMat.emissive.setHex(0x2dc456);
+  noteG.visible = true;
+  if(keyHeld){ agent.remove(keyG); dresserDrawer.add(keyG); }
+  keyG.position.set(0,-.08,.12);
+  keyG.rotation.set(-Math.PI/2,0,0);
+  keyHeld = false;
+
+  Object.keys(ST).forEach(k=>{ ST[k] = false; });
+  walker.pts.length = 0; walker.arrive = null;
+  gest = null; faceTarget = null; isMoving = false; walkPhase = 0;
+  agent.position.set(0,0,1.2); agent.rotation.y = 0;
+  [legL,legR,armL,armR].forEach(p=>{ p.rotation.x = 0; });
+  headG.rotation.set(0,0,0);
+
+  lastSteps = -1; lastRoom = ''; gameRunning = false; winShown = false;
+  currentThought = '';
+  clearTimeout(bubble._timer);
+  bubble.style.display = 'none'; bubble.textContent = '';
+  document.getElementById('win').classList.remove('show');
+}
+
 async function doReset(){
   await fetch(SERVER+'/reset');
   await fetch(SERVER+'/thought',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({thought:''})}).catch(()=>{});
-
-  // Reseta portas e posições
-  cabDoor.rotation.y=0;   cabDoor.position.set(-9.5,.8,-2.24);
-  dreDraw.position.set(0,.55,-11.18);
-  safeDoor.rotation.y=0;  safeDoor.position.set(9.5,.6,-1.88);
-  safe.material.color=new THREE.Color(0x9aa0a8);
-  lockFace.position.set(9.5,.5,2.18);
-
-  // Remove highlights
-  [note,cabinet,dresser,painting,lockDraw,oldPainting].forEach(unhl);
-
-  key.visible=false;
-  agent.position.set(0,0,0);
-  lastRoom=''; gameRunning=false; currentThought='';
-  clearTimeout(bubble._timer);
-  bubble.style.display='none'; bubble.textContent='';
-
-  document.getElementById('win').classList.remove('show');
+  resetScene();
   document.getElementById('obs-box').textContent='partida reiniciada — aguardando IA...';
   document.getElementById('status-banner').className='';
   document.getElementById('status-banner').textContent='⏳ aguardando a IA começar...';

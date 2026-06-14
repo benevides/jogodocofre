@@ -1,0 +1,9 @@
+{
+  "enableAllProjectMcpServers": true,
+  "permissions": {
+    "allow": [
+      "mcp__jogo-do-cofre__iniciar_jogo",
+      "mcp__jogo-do-cofre__executar_acao"
+    ]
+  }
+}

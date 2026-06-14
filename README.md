@@ -136,18 +136,36 @@ URL do servidor MCP:  http://localhost:5002/mcp
 **Claude Code (CLI):**
 
 ```bash
-claude mcp add --transport http cofre http://localhost:5002/mcp
+claude mcp add --transport http jogo-do-cofre http://127.0.0.1:5002/mcp
 ```
 
-**Cursor / clientes com config JSON:**
+**Cursor / Claude Code / clientes com config JSON:**
+
+Use a mesma forma em todos — no Claude Code é o arquivo `.mcp.json` na raiz do
+projeto:
 
 ```json
 {
   "mcpServers": {
-    "jogo do cofre": { "url": "http://localhost:5002/mcp" }
+    "jogo-do-cofre": {
+      "type": "http",
+      "url": "http://127.0.0.1:5002/mcp"
+    }
   }
 }
 ```
+
+Dois detalhes que deixam essa config compatível com o Claude Code (e não
+atrapalham os outros, que ignoram chaves extras):
+
+- **`"type": "http"`** — o Claude Code precisa dele pra escolher o transporte
+  Streamable HTTP; Cursor e afins inferem pela URL.
+- **nome sem espaços** (`jogo-do-cofre`, não `jogo do cofre`) — o Claude Code
+  deriva o nome das tools daí (`mcp__jogo-do-cofre__iniciar_jogo`), e só aceita
+  letras, números, `_` e `-`.
+
+> Use `127.0.0.1` em vez de `localhost`: em alguns sistemas o `localhost`
+> resolve IPv6 (`::1`) antes do IPv4, e o cliente pode não achar o servidor.
 
 **Claude Desktop / claude.ai (conectores web):** esses clientes exigem uma URL
 pública HTTPS. Exponha o servidor local com um túnel e cadastre o conector em

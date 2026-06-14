@@ -107,7 +107,22 @@ JOGO = {
 }
 ```
 
-O contrato completo está documentado no topo de `src/jogos/__init__.py`. Para
+A função `mundo()` descreve as **salas e objetos**. Cada objeto tem um `tipo`
+que o motor entende:
+
+| `tipo` | Para que serve | Campos principais |
+|---|---|---|
+| `movel` | Cenário/decoração (e **chamarizes**: um número falso no texto engana a IA) | `desc` |
+| `nota` | Bilhete/papel com dica, pode ser pego | `texto`, `milestone_examinar` |
+| `quadro` | Esconde um dígito atrás dele | `atras`, `milestone_examinar` |
+| `container` | Armário/gaveta — abre, e pode estar trancado | `aberto`, `conteudo` ou `conteudo_item`, `trancada`, `milestone_*` |
+| `cofre` | O objetivo — abre com `digitar <numero>` | `codigo`, `aberto` |
+
+As chaves `milestone_*` (opcionais) registram um marco na 1ª vez que a IA faz
+aquela descoberta — o `id` precisa existir no dict `milestones` do jogo.
+
+O contrato completo do `JOGO` está no topo de `src/jogos/__init__.py`, e a
+referência detalhada de salas/objetos no topo de `src/jogos/_base.py`. Para
 validar a sua fase, rode `python src/cofre.py` — ele joga a `solucao()` de cada
 jogo descoberto e diz se vence.
 

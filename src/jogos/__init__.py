@@ -13,7 +13,8 @@ Contrato de um JOGO
 ───────────────────
 Obrigatórios:
     "nome":       str   — nome exibido (ex: "Jogo do Cofre - Fase 1")
-    "mundo":      callable() -> dict   — retorna o estado inicial (use _base.estado_base)
+    "mundo":      callable() -> dict   — retorna o estado inicial (use _base.estado_base;
+                                         o formato das salas/objetos está em _base.py)
     "milestones": dict {id: rótulo}    — marcos do jogo (registrados pelo motor)
 
 Opcionais (têm default):

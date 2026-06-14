@@ -8,18 +8,31 @@ Cada partida gera um log com o tempo total, as **milestones** (momentos-chave da
 resolução do enigma) e a conversa completa com a LLM, que podem ser comparados
 entre modelos na página de análise.
 
+O jogo tem **várias fases**, com dificuldade crescente (a Fase 2 é a mesma casa
+da Fase 1, mas com pistas mais cruéis, números-chamariz e um código que exige
+raciocínio). A IA escolhe qual fase jogar, e o catálogo é montado sozinho a
+partir dos arquivos em `src/jogos/` — **basta soltar um arquivo novo no padrão
+que ele aparece em tudo** (servidor, MCP e páginas web). Veja
+[Fases e jogos](#-fases-e-jogos-srcjogos).
+
 ## Estrutura do projeto
 
 ```
 cofre2/
 ├── src/                  Código Python
-│   ├── cofre.py          O ambiente do jogo (API estilo Gymnasium: reset/step)
+│   ├── cofre.py          O motor do jogo, genérico (API estilo Gymnasium: reset/step)
 │   ├── server.py         Servidor HTTP (API REST + MCP + páginas web + logs)
-│   └── agente.py         Agente autônomo que joga usando uma LLM OpenAI-compatible
+│   ├── agente.py         Agente autônomo que joga usando uma LLM OpenAI-compatible
+│   └── jogos/            ★ Um arquivo por fase/jogo — descobertos automaticamente
+│       ├── __init__.py   Registro: varre a pasta e carrega cada JOGO
+│       ├── _base.py      Utilitários compartilhados (arquivos "_" não são jogos)
+│       ├── cofre_fase1.py  Fase 1 (fácil)
+│       └── cofre_fase2.py  Fase 2 (difícil)
 ├── web/                  Páginas servidas pelo server.py
 │   ├── index.html        Landing page
 │   ├── watch.html        Visualização 3D da partida ao vivo
-│   └── analise.html      Análise e comparação das jogadas
+│   ├── analise.html      Análise e comparação das jogadas
+│   └── configurar.html   Como conectar um cliente MCP
 ├── logs/                 Um arquivo JSON por partida
 ├── .env                  Sua configuração (não versionado — crie a partir do env.example)
 ├── env.example           Modelo de configuração
@@ -48,20 +61,78 @@ Para a IA jogar, há três caminhos:
 
 ---
 
+## 🎮 Fases e jogos (`src/jogos/`)
+
+Cada fase/jogo é um arquivo Python em `src/jogos/`. O registro
+(`src/jogos/__init__.py`) varre a pasta na inicialização e carrega **todo
+arquivo que exponha um dicionário `JOGO`** — sem mexer no motor, no servidor nem
+nas páginas. O motor (`cofre.py`) é genérico: ele só consome a definição do jogo.
+
+Fases que já vêm prontas:
+
+| id | Nome | Dificuldade |
+|---|---|---|
+| `cofre_fase1` | Jogo do Cofre - Fase 1 | Fácil — três dígitos viram o código na ordem em que se encontra |
+| `cofre_fase2` | Jogo do Cofre - Fase 2 | Difícil — mesma casa, mas com números-chamariz e um código que exige reordenar os dígitos e somar 1 a cada |
+
+### Como adicionar um jogo novo
+
+Crie `src/jogos/meu_jogo.py` com um dicionário `JOGO`. Assim que o arquivo
+estiver na pasta (no padrão abaixo), ele aparece sozinho no servidor, vira opção
+no MCP (`iniciar_jogo`/`listar_jogos`) e entra nos filtros da análise.
+
+```python
+from ._base import estado_base   # monta o estado padrão a partir das salas
+
+MILESTONES = {"cofre_aberto": "Abriu o cofre"}  # marcos {id: rótulo}
+
+def mundo():
+    return estado_base({ ... salas e objetos ... }, sala_inicial="sala")
+
+def solucao():
+    return ["...", "digitar 000"]   # opcional, usado no autoteste
+
+JOGO = {
+    "nome":       "Meu Jogo",        # obrigatório
+    "mundo":      mundo,             # obrigatório (callable -> estado)
+    "milestones": MILESTONES,        # obrigatório
+    # opcionais (têm default):
+    "id":         "meu_jogo",        # default: nome do arquivo
+    "fase":       3,
+    "cenario":    "cofre",           # qual cena 3D o /watch usa
+    "descricao":  "...",
+    "max_passos": 200,
+    "cena":       {"mugs": 3, "digito_quadro": "1", "digito_papel": "9"},
+    "solucao":    solucao,
+}
+```
+
+O contrato completo está documentado no topo de `src/jogos/__init__.py`. Para
+validar a sua fase, rode `python src/cofre.py` — ele joga a `solucao()` de cada
+jogo descoberto e diz se vence.
+
+> **Cena 3D:** o `/watch` reaproveita o cenário do `cenario` (hoje, `"cofre"`) e
+> lê os números variáveis (`cena`) do servidor — por isso a Fase 2, com 4
+> canecas e outros dígitos, é renderizada corretamente sem tocar no 3D. Um jogo
+> com mapa totalmente diferente precisaria de uma cena nova no `watch.html`.
+
+---
+
 ## 🌐 Jogando via API REST
 
 O fluxo é: `POST /reset` uma vez, depois `POST /step` com uma ação por vez até
-`terminated` (vitória) ou `truncated` (limite de 200 passos). O cronômetro
-começa no `/reset`.
+`terminated` (vitória) ou `truncated` (limite de passos da fase — 200 na Fase 1).
+O cronômetro começa no `/reset`.
 
 ### Endpoints
 
 | Método | Endpoint | Descrição |
 |---|---|---|
-| POST | `/reset` | Inicia partida. Body: `{"model": "nome-da-ia"}` (o nome vai para o log) |
+| POST | `/reset` | Inicia partida. Body: `{"model": "nome-da-ia", "jogo": "cofre_fase2"}` (`jogo` é opcional — padrão Fase 1) |
 | POST | `/step` | Executa ação. Body: `{"action": "ir para cozinha"}` |
 | POST | `/conversa` | (opcional) Registra a troca com a LLM no log do turno |
-| GET | `/current-game` | Estado atual (usado pelo watch 3D) |
+| GET | `/current-game` | Estado atual (usado pelo watch 3D) — inclui o jogo e os parâmetros de cena |
+| GET | `/jogos` | Lista as fases/jogos disponíveis (descobertos em `src/jogos/`) |
 | GET | `/runs` | Todos os logs de jogadas (usado pela análise) |
 | GET/POST | `/god-message` | Dica do operador humano para a IA |
 | GET | `/health` | Status do servidor |
@@ -120,7 +191,8 @@ URL do servidor MCP:  http://localhost:5002/mcp
 
 | Tool | Parâmetros | O que faz |
 |---|---|---|
-| `iniciar_jogo` | `modelo` (obrigatório), `modo` (opcional: `livre`/`turnos`) | Inicia a partida e retorna a observação inicial. O nome do modelo identifica a jogada no log/análise. O cronômetro começa aqui. |
+| `listar_jogos` | — | Lista as fases/jogos disponíveis (id, nome, dificuldade) para a IA escolher. Não inicia partida nem gasta passos. |
+| `iniciar_jogo` | `modelo` (obrigatório), `jogo` (opcional), `modo` (opcional: `livre`/`turnos`) | Inicia a partida e retorna a observação inicial. `jogo` escolhe a fase (padrão: Fase 1). O nome do modelo identifica a jogada no log/análise. O cronômetro começa aqui. |
 | `executar_acao` | `acao` (obrigatório), `pensamento` (obrigatório) | Executa uma ação em linguagem natural e retorna o que aconteceu, com passo e score. O `pensamento` aparece no balão da visualização 3D e no log — sem ele a ação não executa. |
 
 > As descrições das tools são propositalmente vagas: o espírito do jogo é a IA
@@ -181,9 +253,10 @@ pessoa com a URL pode jogar e ler os logs. Use o túnel só durante a partida.
 
 ### Exemplo de prompt para a IA jogar
 
-> Você tem acesso às tools do servidor "cofre". Chame `iniciar_jogo` informando
-> seu nome de modelo, leia a observação e use `executar_acao` quantas vezes
-> precisar até abrir o cofre. Ninguém vai te dizer os comandos — explore.
+> Você tem acesso às tools do servidor "cofre". Chame `listar_jogos` para ver as
+> fases, depois `iniciar_jogo` informando seu nome de modelo e a fase escolhida
+> (campo `jogo`). Leia a observação e use `executar_acao` quantas vezes precisar
+> até abrir o cofre. Ninguém vai te dizer os comandos — explore.
 
 A partida via MCP entra nos logs e na página de análise normalmente (o tempo
 inclui o raciocínio da IA entre uma tool call e outra, como nos outros modos).
@@ -243,6 +316,11 @@ análise — dá para comparar o tempo da mesma IA com e sem paralelismo.
   "model": "omnikimi",
   "started_at": "2026-06-12T15:30:00",
   "modo": "livre",
+  "jogo": "cofre_fase1",
+  "jogo_nome": "Jogo do Cofre - Fase 1",
+  "fase": 1,
+  "cenario": "cofre",
+  "total_milestones": 8,
   "venceu": true,
   "tempo_total": 84.3,
   "passos": 17,
@@ -260,7 +338,12 @@ análise — dá para comparar o tempo da mesma IA com e sem paralelismo.
 }
 ```
 
-As 8 milestones rastreadas (só as descobertas que ajudam a resolver): ler o
-bilhete, ler o verso do quadro antigo, ver as canecas no armário (1º dígito),
-pegar a chave, olhar atrás do quadro do escritório (2º dígito), destrancar a
-gaveta, ler o papel da gaveta (3º dígito) e abrir o cofre.
+Os campos `jogo`/`jogo_nome`/`fase` identificam **qual fase foi jogada** (logs
+antigos, anteriores às fases, são tratados como `Jogo do Cofre - Fase 1`). A
+página de análise filtra por jogo e descobre as milestones de cada partida
+automaticamente, então funciona para qualquer jogo novo.
+
+As 8 milestones rastreadas na família Cofre (só as descobertas que ajudam a
+resolver): ler o bilhete, ler o verso do quadro antigo, ver as canecas no
+armário (1º dígito), pegar a chave, olhar atrás do quadro do escritório (2º
+dígito), destrancar a gaveta, ler o papel da gaveta (3º dígito) e abrir o cofre.

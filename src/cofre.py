@@ -1,17 +1,15 @@
 """
-O Cofre V2 — Versão de Exploração.
+Motor do Cofre V2 — agora genérico (orientado a dados).
 
-O agente não recebe nenhuma instrução sobre o que fazer ou onde procurar.
-A API não expõe a lista de ações válidas. Observações são mínimas.
-O agente deve descobrir os comandos, os objetos relevantes e os dígitos
-apenas explorando a casa.
+O motor NÃO conhece nenhum jogo específico: ele recebe uma definição de jogo
+(um dict no padrão de src/jogos/) e roda em cima do estado que essa definição
+produz. Cada jogo descreve as salas, os objetos, os marcos e o código do cofre;
+a lógica de explorar/examinar/abrir/usar/digitar é a mesma para todos.
 
-Código do cofre: 319
-  1o dígito (3): número de canecas no armário da cozinha
-  2o dígito (1): número riscado atrás do quadro no escritório
-  3o dígito (9): número no papel da gaveta trancada do escritório
+Para adicionar um jogo novo, NÃO mexa aqui: crie um arquivo em src/jogos/
+(veja jogos/cofre_fase1.py). Ele é descoberto automaticamente.
 
-API (mesmo formato do V1, Gymnasium-style):
+API (Gymnasium-style), igual ao V1:
     obs, info = env.reset()
     obs, reward, terminated, truncated, info = env.step(acao)
 """
@@ -23,149 +21,33 @@ import time
 COMANDOS = ("ir para <sala> | olhar | examinar <obj> | abrir <obj> | "
             "pegar <obj> | usar <obj> em <obj> | digitar <numero> | inventario")
 
-# Milestones que ajudam a resolver o enigma. Registradas com tempo e passo
-# na primeira vez que o agente realiza cada descoberta.
-MILESTONES = {
-    "dica_bilhete":       "Leu o bilhete (dica geral)",
-    "dica_quadro_antigo": "Leu o verso do quadro antigo (dica dos guardioes)",
-    "digito1_canecas":    "Viu as canecas no armario da cozinha (1o digito)",
-    "pegou_chave":        "Pegou a chave no quarto",
-    "digito2_quadro":     "Olhou atras do quadro do escritorio (2o digito)",
-    "destrancou_gaveta":  "Destrancou a gaveta do escritorio",
-    "digito3_papel":      "Leu o papel da gaveta trancada (3o digito)",
-    "cofre_aberto":       "Abriu o cofre",
-}
-
-
-def mundo_inicial():
-    """Estado inicial. Objetos falsos em todos os cômodos para forçar exploração."""
-    return {
-        "sala_atual": "sala",
-        "inventario": [],
-        "cofre_aberto": False,
-        "passos": 0,
-        "score": 0,
-        "milestones": [],
-        "t0": time.time(),
-        "salas": {
-            "sala": {
-                "nome": "Sala de Estar",
-                "saidas": ["cozinha", "quarto", "escritorio"],
-                "objetos": {
-                    "mesa": {
-                        "tipo": "movel",
-                        "desc": "Uma mesa de madeira escura. Superficie limpa."
-                    },
-                    "bilhete": {
-                        "tipo": "nota",
-                        "pego": False,
-                        "milestone_examinar": "dica_bilhete",
-                        "texto": (
-                            "Um bilhete velho e rasgado. Partes ilegíveis, mas da pra ler: "
-                            "'...o cofre... tres numeros... conta o que ve... olha por tras... "
-                            "abre com a chave... junta os numeros...'"
-                        )
-                    },
-                    "quadro_antigo": {
-                        "tipo": "movel",
-                        "milestone_examinar": "dica_quadro_antigo",
-                        "desc": (
-                            "Um quadro de paisagem desbotado. Voce o inclina para ver o verso. "
-                            "Ha um papel colado atras, escrito a mao:\n"
-                            "'Tres guardioes guardam os digitos:\n"
-                            " O que sacia a sede revela o primeiro.\n"
-                            " O que decora as paredes revela o segundo.\n"
-                            " O que a chave almeja revela o terceiro.'"
-                        )
-                    },
-                },
-            },
-            "cozinha": {
-                "nome": "Cozinha",
-                "saidas": ["sala"],
-                "objetos": {
-                    "armario": {
-                        "tipo": "container",
-                        "aberto": False,
-                        "conteudo": "tres canecas",
-                        "pista": "1",
-                        "milestone_conteudo": "digito1_canecas"
-                    },
-                    "prateleira": {
-                        "tipo": "movel",
-                        "desc": "Uma prateleira de madeira. Esta vazia."
-                    },
-                    "fogao": {
-                        "tipo": "movel",
-                        "desc": "Um fogao velho. Frio. Nada em cima."
-                    },
-                },
-            },
-            "quarto": {
-                "nome": "Quarto",
-                "saidas": ["sala"],
-                "objetos": {
-                    "cama": {
-                        "tipo": "movel",
-                        "desc": "Uma cama arrumada. Voce verifica embaixo: nada."
-                    },
-                    "guarda_roupa": {
-                        "tipo": "movel",
-                        "desc": "Um guarda-roupa. Roupas velhas penduradas. Nada util."
-                    },
-                    "gaveta": {
-                        "tipo": "container",
-                        "aberto": False,
-                        "conteudo_item": "chave",
-                        "milestone_pegar": "pegou_chave"
-                    },
-                },
-            },
-            "escritorio": {
-                "nome": "Escritorio",
-                "saidas": ["sala"],
-                "objetos": {
-                    "cofre": {
-                        "tipo": "cofre",
-                        "codigo": "319",
-                        "aberto": False
-                    },
-                    "quadro": {
-                        "tipo": "quadro",
-                        "atras": "1",
-                        "milestone_examinar": "digito2_quadro"
-                    },
-                    "gaveta": {
-                        "tipo": "container",
-                        "aberto": False,
-                        "trancada": True,
-                        "conteudo": "um papel com um numero: 9",
-                        "milestone_destrancar": "destrancou_gaveta",
-                        "milestone_conteudo": "digito3_papel"
-                    },
-                    "escrivaninha": {
-                        "tipo": "movel",
-                        "desc": "Uma escrivaninha coberta de poeira. Gavetas vazias."
-                    },
-                    "livro": {
-                        "tipo": "movel",
-                        "desc": "Um livro velho. Paginas em branco. Nada escrito."
-                    },
-                },
-            },
-        },
-    }
-
 
 @dataclass
 class Cofre:
-    max_passos: int = 200
-    estado: dict = field(default_factory=mundo_inicial)
+    jogo: dict = None          # definição do jogo (dict de src/jogos/)
+    max_passos: int = None
+    estado: dict = field(default=None)
+
+    def __post_init__(self):
+        # Sem jogo informado → carrega o jogo padrão (Fase 1) do registro.
+        if self.jogo is None:
+            import jogos
+            self.jogo = jogos.carregar_jogo(jogos.jogo_padrao())
+            if self.jogo is None:
+                raise RuntimeError("Nenhum jogo encontrado em src/jogos/.")
+        if self.max_passos is None:
+            self.max_passos = self.jogo.get("max_passos", 200)
+        if self.estado is None:
+            self.estado = self.jogo["mundo"]()
+
+    @property
+    def milestones_def(self):
+        return self.jogo.get("milestones", {})
 
     # ── API Gymnasium ────────────────────────────────────────────────────────
 
     def reset(self):
-        self.estado = mundo_inicial()
+        self.estado = self.jogo["mundo"]()
         return "Ha um cofre nesta casa. Explore.\n" + self._descricao_sala(), \
                {"acoes_validas": self._acoes_validas()}
 
@@ -239,7 +121,7 @@ class Cofre:
             return
         self.estado["milestones"].append({
             "id": mid,
-            "label": MILESTONES.get(mid, mid),
+            "label": self.milestones_def.get(mid, mid),
             "passo": self.estado["passos"],
             "t": round(time.time() - self.estado["t0"], 2),
         })
@@ -397,27 +279,23 @@ class Cofre:
         return f"Voce digita {num}... nada acontece. Codigo errado."
 
 
-# ── Demo ─────────────────────────────────────────────────────────────────────
+# ── Loop de demonstração / autoteste ─────────────────────────────────────────
 
-def solucao_otima():
-    """Solução de referência (sem ler o bilhete: 13 passos)."""
-    return iter([
-        "ir para cozinha", "abrir armario",            # tres canecas → 3
-        "ir para sala", "ir para quarto",
-        "abrir gaveta", "examinar gaveta", "pegar chave",
-        "ir para sala", "ir para escritorio",
-        "examinar quadro",                             # 1
-        "usar chave em gaveta", "abrir gaveta",        # 9
-        "digitar 319",
-    ])
+def loop(jogo=None, mostrar=True):
+    """Roda a solução de referência de um jogo. Útil para validar uma fase."""
+    import jogos
+    if jogo is None:
+        jogo = jogos.carregar_jogo(jogos.jogo_padrao())
+    elif isinstance(jogo, str):
+        jogo = jogos.carregar_jogo(jogo)
 
-
-def loop(agente_fn, mostrar=True):
-    env = Cofre()
+    env = Cofre(jogo=jogo)
     obs, info = env.reset()
     if mostrar:
+        print(f"\n=== {jogo['nome']} ===")
         print(obs + "\n")
-    acoes = agente_fn()
+
+    acoes = iter(jogo.get("solucao", lambda: [])())
     total = 0.0
     while True:
         try:
@@ -445,4 +323,9 @@ def loop(agente_fn, mostrar=True):
 
 
 if __name__ == "__main__":
-    loop(solucao_otima)
+    import jogos
+    # Autoteste: roda a solução de referência de cada jogo descoberto.
+    for meta in jogos.listar_jogos():
+        r = loop(meta["id"], mostrar=True)
+        status = "OK" if r["venceu"] else "FALHOU"
+        print(f"\n>>> {meta['nome']}: {status} em {r['passos']} passos\n")

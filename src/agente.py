@@ -33,6 +33,8 @@ API_URL      = os.getenv("API_URL",      "http://localhost:8000/v1/chat/completi
 API_KEY      = os.getenv("API_KEY",      "").strip()
 API_MODEL    = os.getenv("API_MODEL",    "model")
 COFRE_SERVER = os.getenv("COFRE_SERVER", "http://localhost:5002")
+# Qual fase/jogo jogar (id de src/jogos/). Vazio = padrão do servidor (Fase 1).
+COFRE_JOGO   = os.getenv("COFRE_JOGO",   "").strip()
 VERBOSE      = os.getenv("VERBOSE",      "true").lower() == "true"
 
 # ── System prompt mínimo — sem guia, sem lista de comandos ──────────────────
@@ -162,9 +164,10 @@ ACAO: [sua próxima ação]"""
 
 def reset_cofre():
     try:
-        r = requests.post(f"{COFRE_SERVER}/reset",
-                          json={"model": API_MODEL,
-                                "system_prompt": SYSTEM_PROMPT}, timeout=5)
+        payload = {"model": API_MODEL, "system_prompt": SYSTEM_PROMPT}
+        if COFRE_JOGO:
+            payload["jogo"] = COFRE_JOGO
+        r = requests.post(f"{COFRE_SERVER}/reset", json=payload, timeout=5)
         r.raise_for_status()
         return r.json()
     except Exception as e:

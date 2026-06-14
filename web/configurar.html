@@ -292,9 +292,14 @@
         </thead>
         <tbody>
           <tr>
+            <td><code>listar_jogos</code></td>
+            <td>—</td>
+            <td>Lista as fases/jogos disponíveis (id, nome e dificuldade) para a IA escolher. Não inicia partida.</td>
+          </tr>
+          <tr>
             <td><code>iniciar_jogo</code></td>
-            <td><code>modelo</code> (obrigatório), <code>modo</code> (opcional)</td>
-            <td>Inicia a partida e retorna a observação inicial. O nome do modelo identifica a jogada no log/análise.</td>
+            <td><code>modelo</code> (obrigatório), <code>jogo</code> (opcional), <code>modo</code> (opcional)</td>
+            <td>Inicia a partida e retorna a observação inicial. <code>jogo</code> escolhe a fase (padrão: Fase 1). O nome do modelo identifica a jogada no log/análise.</td>
           </tr>
           <tr>
             <td><code>executar_acao</code></td>
@@ -306,9 +311,18 @@
     </div>
 
     <div class="card" style="grid-column: 1 / -1;">
+      <h2>Fases / jogos disponíveis</h2>
+      <p>Descobertos automaticamente em <code>src/jogos/</code> — solte um arquivo novo no padrão e ele aparece aqui sozinho.</p>
+      <table>
+        <thead><tr><th>id</th><th>Nome</th><th>Fase</th><th>Descrição</th></tr></thead>
+        <tbody id="jogos-tbody"><tr><td colspan="4">carregando…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
       <h2>Exemplo de prompt para a IA</h2>
       <p>Copie e cole no chat com a IA depois de conectar o MCP:</p>
-      <pre><code>Você tem acesso às tools do servidor "cofre". Chame iniciar_jogo informando seu nome de modelo, leia a observação e use executar_acao quantas vezes precisar até abrir o cofre. Ninguém vai te dizer os comandos — explore.</code></pre>
+      <pre><code>Você tem acesso às tools do servidor "cofre". Chame listar_jogos para ver as fases, depois iniciar_jogo informando seu nome de modelo e a fase escolhida (campo "jogo"). Leia a observação e use executar_acao quantas vezes precisar até abrir o cofre. Ninguém vai te dizer os comandos — explore.</code></pre>
     </div>
   </div>
 </main>
@@ -339,9 +353,31 @@ document.addEventListener("click", e => {
 if (localStorage.getItem("cofre-sidebar") === "closed") closeSidebar();
 updateSidebar();
 
+const SERVER = location.protocol.startsWith("http") ? location.origin
+                                                    : "http://localhost:5002";
 if (location.protocol.startsWith("http")) {
   document.getElementById("mcp-url").textContent = location.origin + "/mcp";
 }
+
+// Lista as fases/jogos descobertos pelo servidor
+const escHtml = s => String(s == null ? "" : s)
+  .replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+(async function carregarJogos() {
+  const tb = document.getElementById("jogos-tbody");
+  try {
+    const r = await fetch(SERVER + "/jogos");
+    const d = await r.json();
+    const jogos = d.jogos || [];
+    if (!jogos.length) { tb.innerHTML = '<tr><td colspan="4">nenhum jogo encontrado</td></tr>'; return; }
+    tb.innerHTML = jogos.map(j => {
+      const padrao = j.id === d.padrao ? " (padrão)" : "";
+      return `<tr><td><code>${escHtml(j.id)}</code></td><td>${escHtml(j.nome)}${padrao}</td>` +
+             `<td>${j.fase ?? "—"}</td><td>${escHtml(j.descricao)}</td></tr>`;
+    }).join("");
+  } catch (e) {
+    tb.innerHTML = '<tr><td colspan="4">servidor offline — rode: python src/server.py</td></tr>';
+  }
+})();
 
 function copiarUrl() {
   const url = document.getElementById("mcp-url").textContent;

@@ -293,6 +293,9 @@
   </header>
 
   <div class="filtros">
+    <label>Jogo / Fase
+      <select id="filtro-jogo"><option value="">Todos</option></select>
+    </label>
     <label>Modelo
       <select id="filtro-modelo"><option value="">Todos</option></select>
     </label>
@@ -357,12 +360,14 @@ document.addEventListener("click", e => {
 if (localStorage.getItem("cofre-sidebar") === "closed") closeSidebar();
 updateSidebar();
 
-// Ordem canônica das milestones (eixo Y, de baixo para cima)
-const ORDEM = [
+// Ordem "preferida" para os jogos da família Cofre. Jogos/milestones novos são
+// descobertos automaticamente a partir dos próprios logs (game-agnostic), então
+// a análise funciona para qualquer jogo solto em src/jogos/ sem mexer aqui.
+const ORDEM_CONHECIDA = [
   "dica_bilhete", "dica_quadro_antigo", "digito1_canecas", "pegou_chave",
   "digito2_quadro", "destrancou_gaveta", "digito3_papel", "cofre_aberto",
 ];
-const NOMES = {
+const NOMES_CONHECIDOS = {
   dica_bilhete:       "Bilhete (dica)",
   dica_quadro_antigo: "Verso do quadro antigo",
   digito1_canecas:    "Canecas no armário (1º díg.)",
@@ -374,6 +379,27 @@ const NOMES = {
 };
 const CORES = ["#2d6a4f", "#f4d03f", "#1b4332", "#d4a017",
                "#40916c", "#f7dc6f", "#52b788", "#b7950b"];
+
+// Une os ids de milestone vistos nas jogadas; os conhecidos vêm primeiro,
+// na ordem canônica; os demais entram na ordem em que aparecem.
+function idsMilestones(lista) {
+  const vistos = [];
+  lista.forEach(r => (r.milestones || []).forEach(m => {
+    if (!vistos.includes(m.id)) vistos.push(m.id);
+  }));
+  return vistos.sort((a, b) => {
+    const ia = ORDEM_CONHECIDA.indexOf(a), ib = ORDEM_CONHECIDA.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return vistos.indexOf(a) - vistos.indexOf(b);
+  });
+}
+function nomeMilestone(id, lista) {
+  for (const r of lista) for (const m of (r.milestones || []))
+    if (m.id === id && m.label) return m.label;
+  return NOMES_CONHECIDOS[id] || id;
+}
 
 let runs = [];
 let selecionadas = new Map();   // run_id -> cor
@@ -410,6 +436,13 @@ async function carregar() {
       modelos.map(m => `<option value="${m}">${m}</option>`).join("");
     sel.value = modelos.includes(atual) ? atual : "";
 
+    // jogos/fases presentes nos logs (logs antigos sem campo = Fase 1)
+    const selJ = $("filtro-jogo"), atualJ = selJ.value;
+    const jogos = [...new Set(runs.map(x => x.jogo_nome || "Jogo do Cofre - Fase 1"))].sort();
+    selJ.innerHTML = '<option value="">Todos</option>' +
+      jogos.map(j => `<option value="${esc(j)}">${esc(j)}</option>`).join("");
+    selJ.value = jogos.includes(atualJ) ? atualJ : "";
+
     // remove seleções de jogadas que não existem mais
     for (const id of [...selecionadas.keys()])
       if (!runs.some(r => r.run_id === id)) selecionadas.delete(id);
@@ -425,11 +458,13 @@ async function carregar() {
 }
 
 function filtradas() {
+  const jogo = $("filtro-jogo").value;
   const modelo = $("filtro-modelo").value;
   const min = parseFloat($("filtro-min").value);
   const max = parseFloat($("filtro-max").value);
   const soVit = $("filtro-vitorias").checked;
   return runs.filter(r =>
+    (!jogo || (r.jogo_nome || "Jogo do Cofre - Fase 1") === jogo) &&
     (!modelo || r.model === modelo) &&
     (isNaN(min) || r.tempo_total >= min) &&
     (isNaN(max) || r.tempo_total <= max) &&
@@ -477,19 +512,23 @@ function renderLista(lista) {
   }
   const linhas = lista.map(r => {
     const cor = selecionadas.get(r.run_id);
+    const totalMs = r.total_milestones || 8;
+    const fase = (r.fase != null) ? ("F" + r.fase) : "F1";
+    const tituloJogo = esc(r.jogo_nome || "Jogo do Cofre - Fase 1");
     return `<tr class="${cor ? "selecionada" : ""}" data-id="${r.run_id}">
       <td><span class="dot" style="background:${cor || "transparent"}"></span></td>
       <td><strong>${r.model}</strong></td>
+      <td title="${tituloJogo}">${fase}</td>
       <td>${fmtData(r.started_at)}</td>
       <td>${esc(r.modo || "livre")}</td>
       <td>${fmtT(r.tempo_total)}</td>
       <td>${r.passos}</td>
-      <td>${(r.milestones || []).length}/8</td>
+      <td>${(r.milestones || []).length}/${totalMs}</td>
       <td class="${r.venceu ? "venceu" : "perdeu"}">${r.venceu ? "🏆" : "✖"}</td>
     </tr>`;
   }).join("");
   $("lista").innerHTML = `<table>
-    <thead><tr><th></th><th>Modelo</th><th>Data</th><th>Modo</th><th>Tempo</th><th>Passos</th><th>Milest.</th><th></th></tr></thead>
+    <thead><tr><th></th><th>Modelo</th><th>Fase</th><th>Data</th><th>Modo</th><th>Tempo</th><th>Passos</th><th>Milest.</th><th></th></tr></thead>
     <tbody>${linhas}</tbody></table>`;
   $("lista").querySelectorAll("tbody tr").forEach(tr =>
     tr.addEventListener("click", () => { toggle(tr.dataset.id); render(); }));
@@ -508,9 +547,11 @@ function renderGrafico(lista) {
     return;
   }
 
+  // Conjunto de milestones derivado das próprias jogadas (qualquer jogo)
+  const ORDEM = idsMilestones(sel);
   const maxT = Math.max(...sel.map(r => r.tempo_total), 1) * 1.05;
   const x = t => ML + (t / maxT) * larg;
-  const y = i => MT + alt - ((i + 0.5) / ORDEM.length) * alt;
+  const y = i => MT + alt - ((i + 0.5) / Math.max(ORDEM.length, 1)) * alt;
 
   // Eixo Y incremental: ordenado pela ordem cronológica em que as milestones
   // aconteceram nas jogadas selecionadas (média dos tempos). Assim a linha de
@@ -531,7 +572,7 @@ function renderGrafico(lista) {
     const naoAtingida = tMedio[id] === Infinity;
     s += `<line x1="${ML}" y1="${y(i)}" x2="${W - MR}" y2="${y(i)}" stroke="#21262d"/>
           <text x="${ML - 10}" y="${y(i) + 4}" fill="${naoAtingida ? "#484f58" : "#8b949e"}"
-           font-size="11.5" text-anchor="end">${NOMES[id]}</text>`;
+           font-size="11.5" text-anchor="end">${esc(nomeMilestone(id, sel))}</text>`;
   });
   // eixo X (tempo)
   const nTicks = 6;
@@ -580,7 +621,7 @@ function renderDetalhe() {
   const ms = (r.milestones || []).slice().sort((a, b) => a.t - b.t);
   const linhas = ms.map((m, i) =>
     `<tr><td>${i + 1}</td><td>${m.label}</td><td>${fmtT(m.t)}</td><td>${m.passo}</td></tr>`).join("");
-  det.innerHTML = `<h2 class="secao-titulo">Milestones — ${r.model} (${fmtData(r.started_at)}) · modo ${esc(r.modo || "livre")}</h2>
+  det.innerHTML = `<h2 class="secao-titulo">Milestones — ${r.model} · ${esc(r.jogo_nome || "Jogo do Cofre - Fase 1")} (${fmtData(r.started_at)}) · modo ${esc(r.modo || "livre")}</h2>
     <table><thead><tr><th>#</th><th>Milestone</th><th>Tempo</th><th>Passo</th></tr></thead>
     <tbody>${linhas || '<tr><td colspan="4" class="vazio">Nenhuma milestone atingida.</td></tr>'}</tbody></table>`;
 
@@ -608,7 +649,7 @@ function renderDetalhe() {
 }
 
 // listeners
-["filtro-modelo", "filtro-min", "filtro-max", "filtro-vitorias"].forEach(id =>
+["filtro-jogo", "filtro-modelo", "filtro-min", "filtro-max", "filtro-vitorias"].forEach(id =>
   $(id).addEventListener("input", render));
 $("btn-recarregar").addEventListener("click", carregar);
 

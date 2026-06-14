@@ -23,6 +23,7 @@ import threading
 
 sys.path.insert(0, os.path.dirname(__file__))
 from cofre import Cofre
+import jogos
 
 # Estrutura do projeto: src/ (código), web/ (páginas), logs/ e .env na raiz
 RAIZ    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -57,6 +58,7 @@ run_model         = ""
 run_started_iso   = ""
 run_system_prompt = ""
 run_modo          = MODO_PADRAO
+run_jogo          = None   # metadados do jogo da partida atual (id, nome, fase, ...)
 historico         = []    # [{passo, acao, t, reward, resultado, pensamento, conversa}]
 conversa_pendente = None  # última troca agente↔LLM, anexada ao próximo /step
 acao_em_andamento = False # modo turnos: há uma ação segurando a resposta agora
@@ -68,11 +70,18 @@ def _salvar_log(venceu):
     global run_id
     if run_id is None or env is None:
         return None
+    jogo = run_jogo or {}
     log = {
         "run_id":        run_id,
         "model":         run_model,
         "started_at":    run_started_iso,
         "modo":          run_modo,
+        # Qual jogo/fase foi jogado (campo novo — partidas antigas eram a Fase 1).
+        "jogo":          jogo.get("id", "cofre_fase1"),
+        "jogo_nome":     jogo.get("nome", "Jogo do Cofre - Fase 1"),
+        "fase":          jogo.get("fase", 1),
+        "cenario":       jogo.get("cenario", "cofre"),
+        "total_milestones": jogo.get("n_milestones", len(env.estado["milestones"])),
         "venceu":        venceu,
         "tempo_total":   round(time.time() - env.estado["t0"], 2),
         "passos":        env.estado["passos"],
@@ -127,17 +136,31 @@ def favicon():
 
 # ── Endpoints do agente (sem valid_actions) ──────────────────────────────────
 
-def _iniciar_jogada(model, system_prompt="", modo=None):
+def _resolver_jogo(jogo_id):
+    """Devolve (jogo_def, meta) do jogo pedido; cai no padrão se não existir."""
+    jogo_id = (jogo_id or "").strip()
+    if not jogo_id:
+        jogo_id = jogos.jogo_padrao()
+    jogo_def = jogos.carregar_jogo(jogo_id)
+    if jogo_def is None:                       # id inválido → padrão (Fase 1)
+        jogo_id = jogos.jogo_padrao()
+        jogo_def = jogos.carregar_jogo(jogo_id)
+    meta = next((m for m in jogos.listar_jogos() if m["id"] == jogo_id), {})
+    return jogo_def, meta
+
+
+def _iniciar_jogada(model, system_prompt="", modo=None, jogo_id=None):
     """Cria uma partida nova com metadados de log. Usado pelo /reset e pelo MCP."""
     global env, current_thought, god_message_pending, god_message_count
-    global run_id, run_model, run_started_iso, run_system_prompt, run_modo
+    global run_id, run_model, run_started_iso, run_system_prompt, run_modo, run_jogo
     global historico, conversa_pendente, acao_em_andamento
 
     model = (model or "").strip() or "desconhecido"
     modo = (modo or "").strip().lower()
     run_modo = modo if modo in ("livre", "turnos") else MODO_PADRAO
 
-    env = Cofre()
+    jogo_def, run_jogo = _resolver_jogo(jogo_id)
+    env = Cofre(jogo=jogo_def)
     obs, info = env.reset()
     current_thought     = ""
     god_message_pending = ""
@@ -152,7 +175,8 @@ def _iniciar_jogada(model, system_prompt="", modo=None):
     historico         = []
     conversa_pendente = None
     acao_em_andamento = False
-    print(f"  [log] Nova jogada: {run_id} (modelo: {model}, modo: {run_modo})")
+    print(f"  [log] Nova jogada: {run_id} (modelo: {model}, modo: {run_modo}, "
+          f"jogo: {run_jogo.get('nome', '?')})")
     return obs
 
 
@@ -223,20 +247,24 @@ def reset():
 
     model = request.args.get('model', '')
     modo  = request.args.get('modo', '')
+    jogo_id = request.args.get('jogo', '')
     system_prompt = ''
     if request.is_json:
         dados = request.json or {}
         model = model or dados.get('model', '')
         modo  = modo or dados.get('modo', '')
+        jogo_id = jogo_id or dados.get('jogo', '')
         system_prompt = dados.get('system_prompt', '')
 
-    obs = _iniciar_jogada(model, system_prompt, modo)
+    obs = _iniciar_jogada(model, system_prompt, modo, jogo_id)
     return jsonify({
         "obs": obs,
         "steps": 0,
         "score": 0,
         "run_id": run_id,
         "modo": run_modo,
+        "jogo": run_jogo.get("id"),
+        "jogo_nome": run_jogo.get("nome"),
         "success": True
     })
 
@@ -277,6 +305,7 @@ def current_game():
         return jsonify({"status": "waiting", "message": "Nenhuma partida em andamento"})
 
     s = env.estado["salas"][env.estado["sala_atual"]]
+    jogo = run_jogo or {}
     return jsonify({
         "status":           "playing",
         "room":             env.estado["sala_atual"],
@@ -291,9 +320,21 @@ def current_game():
         "milestones":       env.estado["milestones"],
         "last_action":      historico[-1]["acao"] if historico else "",
         "modo":             run_modo,
+        # Qual jogo está em andamento + parâmetros visuais para o watch 3D.
+        "jogo":             jogo.get("id"),
+        "jogo_nome":        jogo.get("nome"),
+        "fase":             jogo.get("fase"),
+        "cenario":          jogo.get("cenario", "cofre"),
+        "cena":             jogo.get("cena", {}),
         "thought":          current_thought,
         "god_message_count": god_message_count
     })
+
+
+@app.route('/jogos', methods=['GET'])
+def listar_jogos_endpoint():
+    """Lista os jogos disponíveis (descobertos automaticamente em src/jogos/)."""
+    return jsonify({"jogos": jogos.listar_jogos(), "padrao": jogos.jogo_padrao()})
 
 
 # ── Logs das jogadas (para analise.html) ─────────────────────────────────────
@@ -375,69 +416,97 @@ MCP_VERSAO_PADRAO = "2025-06-18"
 
 # As descrições são propositalmente vagas: o espírito do V2 é a IA descobrir
 # os comandos explorando, sem receber a lista de ações válidas.
-MCP_TOOLS = [
-    {
-        "name": "iniciar_jogo",
-        "description": (
-            "Inicia uma nova partida do Cofre. Você está em uma casa "
-            "desconhecida e em algum lugar há um cofre trancado. Seu objetivo: "
-            "abrir o cofre. Ninguém vai te dizer o que fazer — explore e "
-            "descubra por conta própria. Retorna a observação inicial. "
-            "O cronômetro da partida começa aqui."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "modelo": {
-                    "type": "string",
-                    "description": (
-                        "Nome do modelo de IA que está jogando (aparece no log "
-                        "e na página de análise). Se você não tem CERTEZA de "
-                        "qual modelo você é, pergunte ao seu tutor — o humano "
-                        "que te conectou — antes de jogar. Não invente um nome."
-                    )
+#
+# As tools são construídas dinamicamente para que jogos novos (soltos em
+# src/jogos/) apareçam sozinhos no parâmetro 'jogo' e na tool listar_jogos.
+
+def _construir_tools():
+    metas   = jogos.listar_jogos()
+    ids     = [m["id"] for m in metas] or [None]
+    padrao  = jogos.jogo_padrao()
+    catalogo = "; ".join(f"'{m['id']}' = {m['nome']}" for m in metas) or "(nenhum)"
+    return [
+        {
+            "name": "iniciar_jogo",
+            "description": (
+                "Inicia uma nova partida. Você está numa casa desconhecida e em "
+                "algum lugar há um cofre trancado. Seu objetivo: abrir o cofre. "
+                "Ninguém vai te dizer o que fazer — explore e descubra por conta "
+                "própria. Há mais de uma fase/jogo; escolha em 'jogo' (use a tool "
+                "listar_jogos para ver as opções). Retorna a observação inicial. "
+                "O cronômetro começa aqui."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "modelo": {
+                        "type": "string",
+                        "description": (
+                            "Nome do modelo de IA que está jogando (aparece no log "
+                            "e na página de análise). Se você não tem CERTEZA de "
+                            "qual modelo você é, pergunte ao seu tutor — o humano "
+                            "que te conectou — antes de jogar. Não invente um nome."
+                        )
+                    },
+                    "jogo": {
+                        "type": "string",
+                        "enum": ids,
+                        "description": (
+                            f"Qual fase/jogo jogar (opcional; padrão: '{padrao}'). "
+                            f"Opções: {catalogo}. As fases maiores são mais "
+                            "difíceis. Use listar_jogos para detalhes."
+                        )
+                    },
+                    "modo": {
+                        "type": "string",
+                        "enum": ["livre", "turnos"],
+                        "description": (
+                            "Modo de jogo (opcional; padrão definido pelo servidor). "
+                            "'livre': sem restrição de ritmo. 'turnos': modo "
+                            "realista — uma ação por vez, com tempo entre elas."
+                        )
+                    }
                 },
-                "modo": {
-                    "type": "string",
-                    "enum": ["livre", "turnos"],
-                    "description": (
-                        "Modo de jogo (opcional; padrão definido pelo servidor). "
-                        "'livre': sem restrição de ritmo. 'turnos': modo "
-                        "realista — uma ação por vez, com tempo entre elas."
-                    )
-                }
+                "required": ["modelo"],
             },
-            "required": ["modelo"],
         },
-    },
-    {
-        "name": "executar_acao",
-        "description": (
-            "Executa uma ação em linguagem natural no ambiente e retorna o que "
-            "aconteceu. Se uma ação não funcionar, o ambiente responde e você "
-            "pode tentar algo diferente. Sempre envie também o seu pensamento — "
-            "ele aparece na visualização 3D para os humanos acompanharem."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "acao": {
-                    "type": "string",
-                    "description": "A ação a executar, em linguagem natural."
+        {
+            "name": "listar_jogos",
+            "description": (
+                "Lista as fases/jogos disponíveis (id, nome, dificuldade e "
+                "descrição), para você decidir qual jogar em iniciar_jogo. "
+                "Não inicia partida nem gasta passos."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "executar_acao",
+            "description": (
+                "Executa uma ação em linguagem natural no ambiente e retorna o que "
+                "aconteceu. Se uma ação não funcionar, o ambiente responde e você "
+                "pode tentar algo diferente. Sempre envie também o seu pensamento — "
+                "ele aparece na visualização 3D para os humanos acompanharem."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "acao": {
+                        "type": "string",
+                        "description": "A ação a executar, em linguagem natural."
+                    },
+                    "pensamento": {
+                        "type": "string",
+                        "description": (
+                            "O que você está pensando/planejando com essa ação "
+                            "(curto, 1-2 frases). Aparece no balão de pensamento "
+                            "da visualização 3D e no log da jogada."
+                        )
+                    }
                 },
-                "pensamento": {
-                    "type": "string",
-                    "description": (
-                        "O que você está pensando/planejando com essa ação "
-                        "(curto, 1-2 frases). Aparece no balão de pensamento "
-                        "da visualização 3D e no log da jogada."
-                    )
-                }
+                "required": ["acao", "pensamento"],
             },
-            "required": ["acao", "pensamento"],
         },
-    },
-]
+    ]
 
 
 def _mcp_resposta(mid, result):
@@ -461,15 +530,28 @@ def _mcp_tool_iniciar(args):
             "jogada no ranking e na página de análise."
         )
     obs = _iniciar_jogada(modelo, system_prompt="(jogando via MCP)",
-                          modo=args.get("modo"))
+                          modo=args.get("modo"), jogo_id=args.get("jogo"))
     extra = ""
     if run_modo == "turnos":
         extra = (" Modo turnos: uma ação por vez — o resultado só chega quando "
                  "a ação termina de verdade (andar leva tempo; sem "
                  "teletransporte). Ações enviadas em paralelo são recusadas.")
     return (f"{obs}\n\n"
-            f"Partida iniciada (id: {run_id}, modo: {run_modo}). "
+            f"Partida iniciada — {run_jogo.get('nome', '?')} "
+            f"(id: {run_id}, modo: {run_modo}). "
             f"Use a tool executar_acao para interagir com o ambiente.{extra}")
+
+
+def _mcp_tool_listar(args):
+    linhas = ["Fases/jogos disponíveis (use o 'id' em iniciar_jogo):"]
+    padrao = jogos.jogo_padrao()
+    for m in jogos.listar_jogos():
+        marca = "  ← padrão" if m["id"] == padrao else ""
+        linhas.append(
+            f"\n• {m['id']} — {m['nome']} (fase {m.get('fase')}){marca}\n"
+            f"  {m['descricao']}"
+        )
+    return "\n".join(linhas)
 
 
 def _mcp_tool_acao(args):
@@ -538,9 +620,11 @@ def mcp():
                 "version": "2.0.0",
             },
             "instructions": (
-                "Jogo de escape room para IAs. Chame iniciar_jogo para começar "
-                "e executar_acao para interagir. O objetivo é abrir o cofre — "
-                "explore a casa e descubra como, ninguém vai te dizer o que fazer."
+                "Jogo de escape room para IAs. Use listar_jogos para ver as "
+                "fases disponíveis (as maiores são mais difíceis), chame "
+                "iniciar_jogo (escolhendo o 'jogo') para começar e executar_acao "
+                "para interagir. O objetivo é abrir o cofre — explore a casa e "
+                "descubra como, ninguém vai te dizer o que fazer."
             ),
         })
 
@@ -548,7 +632,7 @@ def mcp():
         return _mcp_resposta(mid, {})
 
     if metodo == "tools/list":
-        return _mcp_resposta(mid, {"tools": MCP_TOOLS})
+        return _mcp_resposta(mid, {"tools": _construir_tools()})
 
     if metodo == "tools/call":
         nome = params.get("name", "")
@@ -556,6 +640,8 @@ def mcp():
         try:
             if nome == "iniciar_jogo":
                 texto = _mcp_tool_iniciar(args)
+            elif nome == "listar_jogos":
+                texto = _mcp_tool_listar(args)
             elif nome == "executar_acao":
                 texto = _mcp_tool_acao(args)
             else:
@@ -586,8 +672,12 @@ if __name__ == '__main__':
     print("COFRE SERVER V2 — Modo Exploração")
     print("=" * 60)
     print(f"HTTP:  http://localhost:{PORT}   (mude com COFRE_PORT no .env)")
-    print("Endpoints: /reset  /step  /current-game  /runs  /health")
+    print("Endpoints: /reset  /step  /current-game  /runs  /jogos  /health")
     print(f"MCP (Streamable HTTP): http://localhost:{PORT}/mcp")
+    print("\nJOGOS DISPONIVEIS (src/jogos/ — descobertos automaticamente):")
+    for m in jogos.listar_jogos():
+        print(f"  - {m['id']:<14} {m['nome']}  (fase {m.get('fase')}, "
+              f"{m['n_milestones']} milestones)")
     print("\nPAGINAS NO NAVEGADOR:")
     print(f"  Landing page:         http://localhost:{PORT}/")
     print(f"  Analise das jogadas:  http://localhost:{PORT}/analise")

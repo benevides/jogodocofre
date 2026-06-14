@@ -262,6 +262,7 @@
 
 <div id="hud-top">
   <div class="hud-block">
+    <div class="lbl">Jogo</div><div class="val" id="h-jogo">-</div>
     <div class="lbl">Local</div><div class="val" id="h-room">-</div>
     <div class="lbl">Inventário</div><div class="val" id="h-inv">-</div>
     <div class="lbl">God Messages</div><div class="val" id="h-god">0 ⚡</div>
@@ -653,6 +654,43 @@ const noteG = G(.18,.69,2.42);
 }
 scene.add(noteG);
 
+// ── PARÂMETROS DE CENA POR FASE/JOGO ─────────────────────────────────────────
+// A "cena" vem do servidor (/current-game → cena) e descreve os números que
+// mudam de uma fase para outra: quantas canecas e quais dígitos aparecem
+// atrás do quadro e no papel da gaveta. Assim a Fase 2 (mais difícil) mostra
+// os valores corretos reaproveitando exatamente este mesmo cenário 3D.
+// (Definido ANTES da cozinha porque buildMugs() é chamado ao montar o armário.)
+const MUG_COLORS = [0xc4524a,0x4a7ac4,0xd9b343,0x4a9d5a,0xb05ad0,0xd08a3a,0x5ab0b0,0xd0d0d0];
+function buildMugs(n){
+  while(mugsG.children.length) mugsG.remove(mugsG.children[0]);
+  n = Math.max(1, Math.min(8, parseInt(n,10) || 1));
+  for(let i=0;i<n;i++){
+    const x = n===1 ? 0 : -.45 + .9*(i/(n-1));
+    const col = MUG_COLORS[i % MUG_COLORS.length];
+    const mg = G(x,0,0);
+    const body = CYL(.07,.06,.13,M(col,{roughness:.5})); body.position.y = .065;
+    const hd = new THREE.Mesh(new THREE.TorusGeometry(.04,.012,8,14), M(col,{roughness:.5}));
+    hd.position.set(.08,.065,0);
+    mg.add(body,hd); mg.rotation.y = .4+i*.9;
+    mugsG.add(mg);
+  }
+}
+function setDigitTexture(mesh, ch){
+  if(!mesh) return;
+  mesh.material.map = canvasTexture(drawDigit(String(ch)));
+  mesh.material.needsUpdate = true;
+}
+let appliedCena = null;
+function applyCena(cena){
+  if(!cena) return;
+  const key = JSON.stringify(cena);
+  if(key === appliedCena) return;   // só reconstrói quando a cena muda de fato
+  appliedCena = key;
+  if(cena.mugs != null)          buildMugs(cena.mugs);
+  if(cena.digito_quadro != null) setDigitTexture(digit1, cena.digito_quadro);
+  if(cena.digito_papel  != null) setDigitTexture(paper9, cena.digito_papel);
+}
+
 // ── COZINHA: armário com portas e canecas, prateleira, fogão ────────────────
 const cabG = G(-9.5,0,-2.62);
 let cabDoorL, cabDoorR, mugsG;
@@ -666,16 +704,11 @@ let cabDoorL, cabDoorR, mugsG;
   const bot   = B(1.36,.05,.56,M(woodIn)); bot.position.set(0,.2,0);
   const shelf = B(1.32,.04,.55,M(woodIn)); shelf.position.set(0,.92,0);
   cabG.add(sideL,sideR,top,base,back,bot,shelf);
-  // as três canecas (o 1º dígito!) — ficam escondidas atrás das portas
+  // as canecas (o 1º dígito!) — ficam escondidas atrás das portas.
+  // A QUANTIDADE vem da "cena" do jogo (/current-game), então cada fase pode
+  // ter um número diferente de canecas. buildMugs() é definida mais abaixo.
   mugsG = G(0,.94,.02);
-  [[-.35,0xc4524a],[0,0x4a7ac4],[.35,0xd9b343]].forEach((mc,i)=>{
-    const mg = G(mc[0],0,0);
-    const body = CYL(.07,.06,.13,M(mc[1],{roughness:.5})); body.position.y = .065;
-    const hd = new THREE.Mesh(new THREE.TorusGeometry(.04,.012,8,14), M(mc[1],{roughness:.5}));
-    hd.position.set(.08,.065,0);
-    mg.add(body,hd); mg.rotation.y = .4+i*.9;
-    mugsG.add(mg);
-  });
+  buildMugs(3);   // valor inicial; corrigido por applyCena() no primeiro poll
   cabG.add(mugsG);
   // portas com puxadores
   cabDoorL = G(-.7,.92,.31);
@@ -1320,6 +1353,7 @@ const clock = new THREE.Clock();
 
 // ── POLLING ───────────────────────────────────────────────────────────────────
 let lastRoom = '', gameRunning = false, lastSteps = -1, winShown = false;
+let currentJogoId = '';   // fase em andamento (p/ o botão reset reabrir a mesma)
 
 async function poll(){
   try{
@@ -1331,10 +1365,16 @@ async function poll(){
       // partida nova começou sem apertar reset? restaura a cena
       if(lastSteps > 0 && s.steps < lastSteps) resetScene();
 
+      // aplica os parâmetros visuais da fase (nº de canecas, dígitos) — só
+      // reconstrói a cena quando a "cena" muda (troca de jogo/fase)
+      applyCena(s.cena);
+      if(s.jogo) currentJogoId = s.jogo;
+
       if(!gameRunning){
         gameRunning = true;
         banner.className = 'playing';
-        banner.textContent = '▶ IA explorando (V2'+(s.modo ? ' · modo '+s.modo : '')+')...';
+        const nomeJogo = s.jogo_nome || 'O Cofre';
+        banner.textContent = '▶ '+nomeJogo+(s.modo ? ' · modo '+s.modo : '')+' — IA explorando...';
       }
 
       if(s.thought && s.thought !== currentThought){
@@ -1368,6 +1408,7 @@ async function poll(){
       }
 
       // HUD
+      document.getElementById('h-jogo').textContent  = s.jogo_nome || '-';
       document.getElementById('h-room').textContent  = s.room_name||'-';
       document.getElementById('h-inv').textContent   = s.inventory&&s.inventory.length ? s.inventory.join(', ') : '-';
       document.getElementById('h-god').textContent   = (s.god_message_count||0)+' ⚡';
@@ -1454,7 +1495,9 @@ function resetScene(){
 }
 
 async function doReset(){
-  await fetch(SERVER+'/reset');
+  // reabre a MESMA fase que estava em andamento (se houver)
+  const q = currentJogoId ? ('?jogo='+encodeURIComponent(currentJogoId)) : '';
+  await fetch(SERVER+'/reset'+q);
   await fetch(SERVER+'/thought',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({thought:''})}).catch(()=>{});
   resetScene();
   document.getElementById('obs-box').textContent='partida reiniciada — aguardando IA...';
